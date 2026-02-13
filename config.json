@@ -1,0 +1,25 @@
+{
+  "window": {
+    "title": "H5 Lens",
+    "width": 1280,
+    "height": 800,
+    "min_width": 800,
+    "min_height": 500,
+    "resizable": true,
+    "on_top": false
+  },
+  "viewer": {
+    "max_preview_rows": 5000,
+    "max_preview_cols": 200,
+    "max_image_pixels": 4000000,
+    "float_precision": 8,
+    "sidebar_width": 300
+  },
+  "export": {
+    "csv_separator": ",",
+    "csv_line_ending": "\n",
+    "default_format": "csv"
+  },
+  "recent_files": [],
+  "max_recent_files": 10
+}

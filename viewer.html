@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H5 Lens</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --bg-0: #0b0e14;
+    --bg-1: #10141c;
+    --bg-2: #151a24;
+    --bg-3: #1a2030;
+    --bg-hover: #1e2538;
+    --bg-active: #232b3e;
+    --border: #252d3d;
+    --border-subtle: #1c2333;
+    --tx-1: #e0e6f0;
+    --tx-2: #8892a6;
+    --tx-3: #576070;
+    --accent: #5b9ef5;
+    --accent-soft: rgba(91,158,245,0.12);
+    --accent-hover: #7db5ff;
+    --green: #47d185;
+    --green-soft: rgba(71,209,133,0.12);
+    --amber: #e5a646;
+    --amber-soft: rgba(229,166,70,0.12);
+    --red: #ef6b6b;
+    --purple: #b48eff;
+    --purple-soft: rgba(180,142,255,0.12);
+    --cyan: #56d4e0;
+    --cyan-soft: rgba(86,212,224,0.12);
+    --mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    --sans: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius: 6px;
+    --dur: 120ms;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%; overflow: hidden;
+    background: var(--bg-0); color: var(--tx-1);
+    font-family: var(--sans); font-size: 13px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--tx-3); }
+
+  /* ═══════════════════ LAYOUT ═══════════════════ */
+
+  #app { display: grid; grid-template-rows: 44px 1fr 24px; height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 16px; background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+    -webkit-app-region: drag;        /* allow window dragging */
+    z-index: 100;
+  }
+  header > * { -webkit-app-region: no-drag; }
+
+  .logo {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-weight: 600; font-size: 13px;
+    letter-spacing: -0.3px; white-space: nowrap; color: var(--tx-1);
+    -webkit-app-region: drag;
+  }
+  .logo-mark {
+    width: 24px; height: 24px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff;
+    box-shadow: 0 2px 6px rgba(91,158,245,0.25);
+  }
+
+  .sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+
+  /* breadcrumb */
+  #breadcrumb {
+    display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0;
+    font-family: var(--mono); font-size: 11.5px; color: var(--tx-2);
+    overflow: hidden; white-space: nowrap;
+  }
+  .crumb {
+    padding: 2px 5px; border-radius: 3px; cursor: pointer;
+    transition: all var(--dur); flex-shrink: 0;
+  }
+  .crumb:hover { background: var(--bg-hover); color: var(--accent); }
+  .crumb.active { color: var(--tx-1); }
+  .crumb-sep { color: var(--tx-3); flex-shrink: 0; font-size: 10px; }
+
+  /* buttons */
+  .hdr-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; font-family: var(--sans); font-size: 12px; font-weight: 500;
+    color: var(--tx-2); background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: var(--radius); cursor: pointer;
+    transition: all var(--dur); white-space: nowrap;
+  }
+  .btn:hover { background: var(--bg-hover); color: var(--tx-1); border-color: var(--tx-3); }
+  .btn svg { width: 14px; height: 14px; }
+  .btn-primary { background: var(--accent-soft); border-color: rgba(91,158,245,0.3); color: var(--accent); }
+  .btn-primary:hover { background: var(--accent); color: #fff; }
+  .btn-icon { padding: 5px 7px; }
+  .btn:disabled { opacity: 0.35; pointer-events: none; }
+
+  /* ── Main ── */
+  main {
+    display: grid; grid-template-columns: 280px 1fr;
+    overflow: hidden; position: relative;
+  }
+  main.empty { grid-template-columns: 1fr; }
+  main.empty .sidebar,
+  main.empty .content,
+  main.empty .resize-handle { display: none; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    display: flex; flex-direction: column;
+    background: var(--bg-1); border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .sidebar-head {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 12px; border-bottom: 1px solid var(--border-subtle);
+  }
+  .sidebar-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--tx-3); flex: 1;
+  }
+  .badge {
+    font-family: var(--mono); font-size: 10px;
+    padding: 1px 7px; border-radius: 8px;
+    background: var(--bg-3); color: var(--tx-3);
+  }
+
+  /* search */
+  .search-wrap {
+    position: relative; padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .search-wrap input {
+    width: 100%; padding: 6px 8px 6px 28px;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--tx-1);
+    font-family: var(--mono); font-size: 11px; outline: none;
+    transition: border var(--dur);
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap input::placeholder { color: var(--tx-3); }
+  .search-wrap svg {
+    position: absolute; left: 17px; top: 50%; transform: translateY(-50%);
+    width: 13px; height: 13px; color: var(--tx-3); pointer-events: none;
+  }
+
+  /* tree */
+  .tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+  .tnode {
+    display: flex; align-items: center; gap: 3px;
+    padding: 3px 10px 3px calc(10px + var(--d, 0) * 16px);
+    cursor: pointer; transition: background var(--dur);
+    font-family: var(--mono); font-size: 12px; min-height: 28px;
+  }
+  .tnode:hover { background: var(--bg-hover); }
+  .tnode.sel { background: var(--accent-soft); color: var(--accent-hover); }
+
+  .tnode .chev {
+    width: 14px; height: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--tx-3); transition: transform var(--dur);
+  }
+  .tnode .chev.open { transform: rotate(90deg); }
+  .tnode .chev.hide { visibility: hidden; }
+
+  .tnode .ico { width: 15px; height: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .tnode .ico.grp { color: var(--amber); }
+  .tnode .ico.ds  { color: var(--cyan); }
+  .tnode .ico.rt  { color: var(--accent); }
+
+  .tnode .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tnode .meta {
+    font-size: 10px; padding: 0 5px; border-radius: 3px;
+    background: var(--bg-3); color: var(--tx-3); flex-shrink: 0;
+  }
+
+  /* ── Content ── */
+  .content { display: flex; flex-direction: column; overflow: hidden; }
+
+  /* placeholder */
+  .hint {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 10px; color: var(--tx-3); font-size: 13px;
+  }
+  .hint svg { width: 36px; height: 36px; opacity: 0.2; }
+
+  /* info bar */
+  .info-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 16px; background: var(--bg-1);
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .chip {
+    font-family: var(--mono); font-size: 11px;
+    padding: 2px 8px; border-radius: 4px; white-space: nowrap;
+  }
+  .chip.tp  { background: var(--purple-soft); color: var(--purple); }
+  .chip.dt  { background: var(--amber-soft); color: var(--amber); }
+  .chip.sh  { background: var(--green-soft); color: var(--green); }
+  .chip.sz  { background: var(--accent-soft); color: var(--accent); }
+  .chip.at  { background: var(--cyan-soft); color: var(--cyan); }
+  .info-sep { flex: 1; }
+
+  /* tabs */
+  .tabs {
+    display: flex; gap: 2px; padding: 0 10px;
+    background: var(--bg-1); border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .tab {
+    padding: 8px 14px; font-size: 12px; font-weight: 500;
+    color: var(--tx-3); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all var(--dur);
+  }
+  .tab:hover { color: var(--tx-2); }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* tab panes */
+  .pane { flex: 1; overflow: auto; display: none; flex-direction: column; }
+  .pane.on { display: flex; }
+
+  /* ── Data Table ── */
+  .tbl-wrap { overflow: auto; flex: 1; }
+  .tbl-notice {
+    padding: 6px 14px; background: var(--amber-soft); color: var(--amber);
+    font-family: var(--mono); font-size: 11px; text-align: center; flex-shrink: 0;
+  }
+
+  table.dtbl {
+    width: 100%; border-collapse: collapse;
+    font-family: var(--mono); font-size: 11.5px;
+  }
+  .dtbl thead { position: sticky; top: 0; z-index: 5; }
+  .dtbl th {
+    background: var(--bg-2); color: var(--tx-3);
+    padding: 7px 12px; text-align: left; font-weight: 500;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .dtbl th.ri {
+    width: 56px; text-align: right; padding-right: 10px;
+    background: var(--bg-1); border-right: 1px solid var(--border);
+  }
+  .dtbl td {
+    padding: 4px 12px; border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .dtbl td.ri {
+    text-align: right; padding-right: 10px; color: var(--tx-3);
+    background: var(--bg-1); border-right: 1px solid var(--border);
+    font-size: 10px;
+  }
+  .dtbl tbody tr:hover td { background: var(--bg-hover); }
+  .dtbl tbody tr:hover td.ri { background: var(--bg-2); }
+
+  /* scalar */
+  .scalar-box {
+    display: flex; align-items: center; justify-content: center; height: 100%;
+  }
+  .scalar-inner {
+    text-align: center; padding: 36px 56px;
+    background: var(--bg-1); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .scalar-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--tx-3); margin-bottom: 10px; }
+  .scalar-val { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--accent); word-break: break-all; }
+
+  /* attrs */
+  .attrs-grid { padding: 14px 18px; }
+  .attr-row {
+    display: grid; grid-template-columns: 170px 1fr;
+    gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border-subtle);
+    font-size: 12px; align-items: baseline;
+  }
+  .attr-k { font-family: var(--mono); font-size: 11.5px; color: var(--tx-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .attr-v { font-family: var(--mono); font-size: 11.5px; color: var(--tx-1); word-break: break-all; }
+
+  /* stats */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px; padding: 18px;
+  }
+  .stat-card {
+    background: var(--bg-1); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+  }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--tx-3); margin-bottom: 6px; }
+  .stat-value { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--tx-1); }
+
+  /* image preview */
+  .img-box { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; overflow: auto; }
+  .img-box img {
+    max-width: 100%; max-height: 100%; image-rendering: pixelated;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  /* empty */
+  .empty-msg {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; color: var(--tx-3); font-size: 13px;
+  }
+
+  /* ── Welcome ── */
+  .welcome {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 100%; gap: 28px; padding: 40px;
+  }
+  main:not(.empty) .welcome { display: none; }
+
+  .drop-zone {
+    width: 100%; max-width: 480px; padding: 52px 36px;
+    border: 2px dashed var(--border); border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 18px; cursor: pointer; transition: all 0.25s ease;
+  }
+  .drop-zone:hover {
+    border-color: var(--accent); background: var(--accent-soft);
+    box-shadow: 0 0 36px rgba(91,158,245,0.06);
+  }
+  .drop-big {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent-soft), var(--purple-soft));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .drop-big svg { width: 24px; height: 24px; stroke: var(--accent); }
+  .drop-title { font-size: 16px; font-weight: 500; }
+  .drop-sub { font-size: 12px; color: var(--tx-2); text-align: center; line-height: 1.6; }
+  .drop-fmts { display: flex; gap: 6px; }
+  .drop-fmts span {
+    font-family: var(--mono); font-size: 10px; padding: 2px 8px;
+    border-radius: 3px; background: var(--bg-3); color: var(--tx-3); border: 1px solid var(--border);
+  }
+
+  /* recent files */
+  .recent-list {
+    width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 2px;
+  }
+  .recent-title {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--tx-3); margin-bottom: 6px;
+  }
+  .recent-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-radius: var(--radius);
+    cursor: pointer; transition: background var(--dur);
+    font-family: var(--mono); font-size: 11.5px; color: var(--tx-2);
+  }
+  .recent-item:hover { background: var(--bg-hover); color: var(--tx-1); }
+  .recent-item svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--tx-3); }
+
+  /* ── Resize Handle ── */
+  .resize-handle {
+    position: absolute; left: 279px; top: 0; width: 3px; height: 100%;
+    cursor: col-resize; z-index: 50; background: transparent;
+    transition: background var(--dur);
+  }
+  .resize-handle:hover, .resize-handle.dragging { background: var(--accent); }
+
+  /* ── Status Bar ── */
+  .status {
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 14px; background: var(--bg-1);
+    border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 10.5px; color: var(--tx-3);
+  }
+  .status .fill { flex: 1; }
+
+  /* ── Loading ── */
+  .loading-mask {
+    position: fixed; inset: 0; background: rgba(11,14,20,0.75);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; backdrop-filter: blur(3px);
+  }
+  .spinner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .spin-ring {
+    width: 32px; height: 32px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin-text { font-size: 12px; color: var(--tx-2); }
+
+  /* ── Toast ── */
+  .toast-msg {
+    position: fixed; bottom: 36px; right: 16px;
+    padding: 8px 16px; background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 12px; color: var(--tx-1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 2000;
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.25s ease; pointer-events: none;
+  }
+  .toast-msg.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Animations ── */
+  @keyframes fadeUp { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+  .fade-up { animation: fadeUp 0.2s ease forwards; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">H5</div>
+      <span>H5 Lens</span>
+    </div>
+    <div class="sep"></div>
+    <div id="breadcrumb"></div>
+    <div class="hdr-actions">
+      <button class="btn btn-primary" id="btnOpen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1"/><path d="M21 15l-3.5-7H7.5L4 15h17z"/></svg>
+        Open
+      </button>
+      <button class="btn" id="btnExport" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="btn" id="btnStats" disabled title="Compute statistics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Stats
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main id="main" class="empty">
+    <div class="resize-handle" id="resizeHandle"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <span class="sidebar-label">Explorer</span>
+        <span class="badge" id="nodeCount"></span>
+      </div>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Filter…" spellcheck="false" />
+      </div>
+      <div class="tree" id="tree"></div>
+    </aside>
+
+    <!-- Content -->
+    <section class="content" id="content">
+      <div class="hint" id="hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        Select a node from the tree
+      </div>
+    </section>
+
+    <!-- Welcome -->
+    <div class="welcome" id="welcome">
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-big">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="drop-title">Open an HDF5 file</div>
+        <div class="drop-sub">Click to browse · or drag and drop</div>
+        <div class="drop-fmts"><span>.h5</span><span>.hdf5</span><span>.he5</span><span>.nc</span></div>
+      </div>
+      <div class="recent-list" id="recentList"></div>
+    </div>
+  </main>
+
+  <!-- Status -->
+  <div class="status">
+    <span id="stLeft">No file loaded</span>
+    <span class="fill"></span>
+    <span id="stRight">Ctrl+O Open · / Search · Ctrl+E Export</span>
+  </div>
+</div>
+
+<div class="toast-msg" id="toast"></div>
+
+<script>
+// ── Wait for pywebview bridge ──
+const api = () => window.pywebview ? window.pywebview.api : null;
+
+// ── State ──
+let treeData = null;
+let currentPath = '/';
+let currentNode = null;
+let filterText = '';
+
+// ── Refs ──
+const $ = id => document.getElementById(id);
+const mainEl = $('main');
+const treeEl = $('tree');
+const contentEl = $('content');
+const hintEl = $('hint');
+const welcomeEl = $('welcome');
+
+// ── Toast ──
+let toastT = null;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ── Loading ──
+function showLoad(msg='Loading…') {
+  let el = document.querySelector('.loading-mask');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'loading-mask';
+    el.innerHTML = `<div class="spinner"><div class="spin-ring"></div><div class="spin-text">${msg}</div></div>`;
+    document.body.appendChild(el);
+  } else {
+    el.querySelector('.spin-text').textContent = msg;
+    el.style.display = '';
+  }
+}
+function hideLoad() {
+  const el = document.querySelector('.loading-mask');
+  if (el) el.style.display = 'none';
+}
+
+// ── Open file ──
+async function openFile(filepath) {
+  const a = api();
+  if (!a) return;
+  showLoad('Opening file…');
+  try {
+    let res;
+    if (filepath) {
+      res = await a.open_file(filepath);
+    } else {
+      res = await a.open_file_dialog();
+    }
+    if (!res.ok) {
+      hideLoad();
+      if (res.error !== 'cancelled') toast('Error: ' + res.error);
+      return;
+    }
+    treeData = res.tree;
+    renderTree(treeData);
+    mainEl.classList.remove('empty');
+    hintEl.style.display = '';
+    clearContent();
+
+    $('nodeCount').textContent = countNodes(treeData);
+    $('stLeft').textContent = res.filename + ' · ' + res.size_fmt;
+    updateBreadcrumb('/');
+    toast('Opened ' + res.filename);
+  } catch(e) {
+    toast('Error: ' + e);
+  }
+  hideLoad();
+}
+
+// ── Tree ──
+function countNodes(n) { return 1 + (n.children||[]).reduce((s,c)=>s+countNodes(c),0); }
+
+function renderTree(root) {
+  treeEl.innerHTML = '';
+  buildNode(root, 0, treeEl, true);
+}
+
+function nodeMatch(n, f) {
+  if (n.name.toLowerCase().includes(f)) return true;
+  return (n.children||[]).some(c => nodeMatch(c, f));
+}
+
+function buildNode(node, depth, parent, expanded) {
+  if (filterText && !nodeMatch(node, filterText.toLowerCase())) return;
+
+  const isGrp = node.type === 'group';
+  const hasKids = isGrp && node.children && node.children.length > 0;
+
+  const el = document.createElement('div');
+  el.className = 'tnode' + (currentPath === node.path ? ' sel' : '');
+  el.style.setProperty('--d', depth);
+  el.dataset.path = node.path;
+
+  // Chevron
+  const chev = document.createElement('span');
+  chev.className = 'chev' + (!hasKids ? ' hide' : '') + (expanded ? ' open' : '');
+  chev.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
+  el.appendChild(chev);
+
+  // Icon
+  const ico = document.createElement('span');
+  if (node.path === '/') {
+    ico.className = 'ico rt';
+    ico.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
+  } else if (isGrp) {
+    ico.className = 'ico grp';
+    ico.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+  } else {
+    ico.className = 'ico ds';
+    ico.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
+  }
+  el.appendChild(ico);
+
+  // Label
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl';
+  lbl.textContent = node.path === '/' ? 'Root' : node.name;
+  lbl.title = node.path;
+  el.appendChild(lbl);
+
+  // Badge
+  if (node.type === 'dataset' && node.shape) {
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = node.shape.length === 0 ? 'scalar' : node.shape.join('×');
+    el.appendChild(meta);
+  }
+  if (isGrp && node.children && node.children.length > 0) {
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = node.children.length;
+    el.appendChild(meta);
+  }
+
+  parent.appendChild(el);
+
+  // Children
+  let kidBox = null;
+  if (hasKids) {
+    kidBox = document.createElement('div');
+    kidBox.style.display = expanded ? '' : 'none';
+    parent.appendChild(kidBox);
+    for (const c of node.children) buildNode(c, depth + 1, kidBox, !!filterText);
+  }
+
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    selectNode(node);
+    if (hasKids && kidBox) {
+      const open = kidBox.style.display !== 'none';
+      kidBox.style.display = open ? 'none' : '';
+      chev.classList.toggle('open', !open);
+    }
+  });
+}
+
+// ── Selection ──
+async function selectNode(node) {
+  currentPath = node.path;
+  currentNode = node;
+
+  treeEl.querySelectorAll('.tnode.sel').forEach(e => e.classList.remove('sel'));
+  const t = treeEl.querySelector(`[data-path="${CSS.escape(node.path)}"]`);
+  if (t) t.classList.add('sel');
+
+  updateBreadcrumb(node.path);
+
+  $('btnExport').disabled = node.type !== 'dataset';
+  $('btnStats').disabled = node.type !== 'dataset';
+
+  if (node.type === 'group') {
+    await renderGroup(node);
+  } else if (node.type === 'dataset') {
+    await renderDataset(node);
+  }
+}
+
+// ── Breadcrumb ──
+function updateBreadcrumb(path) {
+  const bc = $('breadcrumb');
+  bc.innerHTML = '';
+  const parts = path === '/' ? ['/'] : ['/', ...path.split('/').filter(Boolean)];
+  parts.forEach((p, i) => {
+    if (i > 0) {
+      const s = document.createElement('span');
+      s.className = 'crumb-sep';
+      s.textContent = '›';
+      bc.appendChild(s);
+    }
+    const c = document.createElement('span');
+    c.className = 'crumb' + (i === parts.length - 1 ? ' active' : '');
+    c.textContent = i === 0 ? 'Root' : p;
+    const tp = i === 0 ? '/' : '/' + parts.slice(1, i + 1).join('/');
+    c.addEventListener('click', () => {
+      const n = findNode(treeData, tp);
+      if (n) selectNode(n);
+    });
+    bc.appendChild(c);
+  });
+}
+
+function findNode(n, path) {
+  if (n.path === path) return n;
+  for (const c of (n.children || [])) { const f = findNode(c, path); if (f) return f; }
+  return null;
+}
+
+// ── Clear content ──
+function clearContent() {
+  Array.from(contentEl.children).forEach(c => { if (c.id !== 'hint') c.remove(); });
+  hintEl.style.display = '';
+}
+
+// ── Render Group ──
+async function renderGroup(node) {
+  hintEl.style.display = 'none';
+  clearContent();
+  const a = api(); if (!a) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'fade-up';
+  wrap.style.cssText = 'height:100%;display:flex;flex-direction:column;';
+
+  // Info bar
+  const info = document.createElement('div');
+  info.className = 'info-bar';
+  info.innerHTML = `<span class="chip tp">Group</span><span class="chip sh">${node.children.length} children</span><span class="chip at">${node.attr_count||0} attrs</span>`;
+  wrap.appendChild(info);
+
+  // Tabs
+  const tabsEl = document.createElement('div');
+  tabsEl.className = 'tabs';
+  const tChildren = mkTab('Children', true);
+  const tAttrs = mkTab('Attributes', false);
+  tabsEl.append(tChildren.el, tAttrs.el);
+  wrap.appendChild(tabsEl);
+
+  // Children pane
+  const pChildren = document.createElement('div');
+  pChildren.className = 'pane on';
+  if (node.children.length === 0) {
+    pChildren.innerHTML = '<div class="empty-msg">Empty group</div>';
+  } else {
+    const tw = document.createElement('div');
+    tw.className = 'tbl-wrap';
+    const tbl = document.createElement('table');
+    tbl.className = 'dtbl';
+    tbl.innerHTML = '<thead><tr><th>Name</th><th>Type</th><th>Shape</th><th>Dtype</th><th>Compression</th></tr></thead>';
+    const tb = document.createElement('tbody');
+    for (const c of node.children) {
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.innerHTML = `
+        <td style="color:var(--accent)">${esc(c.name)}</td>
+        <td>${c.type==='group'?'<span style="color:var(--amber)">Group</span>':'<span style="color:var(--cyan)">Dataset</span>'}</td>
+        <td>${c.shape?(c.shape.length===0?'scalar':c.shape.join(' × ')):'—'}</td>
+        <td>${c.dtype||'—'}</td>
+        <td>${c.compression||'—'}</td>`;
+      tr.addEventListener('click', () => {
+        const n = findNode(treeData, c.path);
+        if (n) selectNode(n);
+      });
+      tb.appendChild(tr);
+    }
+    tbl.appendChild(tb);
+    tw.appendChild(tbl);
+    pChildren.appendChild(tw);
+  }
+  wrap.appendChild(pChildren);
+
+  // Attrs pane
+  const pAttrs = document.createElement('div');
+  pAttrs.className = 'pane';
+  const attrRes = await a.get_attrs(node.path);
+  pAttrs.appendChild(renderAttrs(attrRes.ok ? attrRes.attrs : {}));
+  wrap.appendChild(pAttrs);
+
+  wireTabs([tChildren, tAttrs], [pChildren, pAttrs]);
+  contentEl.appendChild(wrap);
+}
+
+// ── Render Dataset ──
+async function renderDataset(node) {
+  hintEl.style.display = 'none';
+  clearContent();
+  const a = api(); if (!a) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'fade-up';
+  wrap.style.cssText = 'height:100%;display:flex;flex-direction:column;';
+
+  // Info bar
+  const total = node.shape.reduce((a,b)=>a*b, 1) || 1;
+  const info = document.createElement('div');
+  info.className = 'info-bar';
+  info.innerHTML = `
+    <span class="chip tp">Dataset</span>
+    <span class="chip dt">${esc(node.dtype)}</span>
+    <span class="chip sh">${node.shape.length===0?'scalar':node.shape.join(' × ')}</span>
+    <span class="chip sz">${total.toLocaleString()} values</span>
+    <span class="chip at">${node.attr_count||0} attrs</span>
+    ${node.compression?`<span class="chip" style="background:var(--green-soft);color:var(--green)">${esc(node.compression)}</span>`:''}`;
+  wrap.appendChild(info);
+
+  // Tabs
+  const tabsEl = document.createElement('div');
+  tabsEl.className = 'tabs';
+  const tData = mkTab('Data', true);
+  const tAttrs = mkTab('Attributes', false);
+  const tDetails = mkTab('Details', false);
+  tabsEl.append(tData.el, tAttrs.el, tDetails.el);
+
+  // Image tab?
+  const canImg = (node.shape.length === 2 || (node.shape.length === 3 && node.shape[2] <= 4));
+  let tImage = null;
+  if (canImg && total <= 4000000) {
+    tImage = mkTab('Image', false);
+    tabsEl.appendChild(tImage.el);
+  }
+  wrap.appendChild(tabsEl);
+
+  // Data pane
+  const pData = document.createElement('div');
+  pData.className = 'pane on';
+  const dataRes = await a.get_data(node.path);
+  if (!dataRes.ok) {
+    pData.innerHTML = `<div class="empty-msg">Error: ${esc(dataRes.error)}</div>`;
+  } else if (dataRes.mode === 'scalar') {
+    pData.innerHTML = `<div class="scalar-box"><div class="scalar-inner"><div class="scalar-lbl">Scalar Value</div><div class="scalar-val">${esc(String(dataRes.value))}</div></div></div>`;
+  } else {
+    if (dataRes.truncated) {
+      const notice = document.createElement('div');
+      notice.className = 'tbl-notice';
+      notice.textContent = `Preview: showing ${dataRes.shown_rows||dataRes.shown||'?'} of ${(dataRes.total_rows||dataRes.total_elements||'?').toLocaleString()} rows`;
+      pData.appendChild(notice);
+    }
+    const tw = document.createElement('div');
+    tw.className = 'tbl-wrap';
+    const tbl = document.createElement('table');
+    tbl.className = 'dtbl';
+    const thead = document.createElement('thead');
+    let hdr = '<tr>';
+    for (let i = 0; i < dataRes.headers.length; i++) {
+      hdr += i === 0 ? `<th class="ri">${esc(dataRes.headers[i])}</th>` : `<th>${esc(dataRes.headers[i])}</th>`;
+    }
+    hdr += '</tr>';
+    thead.innerHTML = hdr;
+    tbl.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const row of dataRes.rows) {
+      const tr = document.createElement('tr');
+      let cells = '';
+      for (let i = 0; i < row.length; i++) {
+        cells += i === 0 ? `<td class="ri">${row[i]}</td>` : `<td>${esc(String(row[i]))}</td>`;
+      }
+      tr.innerHTML = cells;
+      tbody.appendChild(tr);
+    }
+    tbl.appendChild(tbody);
+    tw.appendChild(tbl);
+    pData.appendChild(tw);
+  }
+  wrap.appendChild(pData);
+
+  // Attrs pane
+  const pAttrs = document.createElement('div');
+  pAttrs.className = 'pane';
+  const attrRes = await a.get_attrs(node.path);
+  pAttrs.appendChild(renderAttrs(attrRes.ok ? attrRes.attrs : {}));
+  wrap.appendChild(pAttrs);
+
+  // Details pane
+  const pDetails = document.createElement('div');
+  pDetails.className = 'pane';
+  const detRes = await a.get_details(node.path);
+  if (detRes.ok) {
+    const grid = document.createElement('div');
+    grid.className = 'attrs-grid';
+    for (const [k,v] of Object.entries(detRes.details)) {
+      const row = document.createElement('div');
+      row.className = 'attr-row';
+      row.innerHTML = `<span class="attr-k">${esc(formatLabel(k))}</span><span class="attr-v">${esc(String(v))}</span>`;
+      grid.appendChild(row);
+    }
+    pDetails.appendChild(grid);
+  } else {
+    pDetails.innerHTML = `<div class="empty-msg">${esc(detRes.error||'Error')}</div>`;
+  }
+  wrap.appendChild(pDetails);
+
+  // Image pane
+  let pImage = null;
+  const allTabs = [tData, tAttrs, tDetails];
+  const allPanes = [pData, pAttrs, pDetails];
+
+  if (tImage) {
+    pImage = document.createElement('div');
+    pImage.className = 'pane';
+    pImage.dataset.loaded = '0';
+    allTabs.push(tImage);
+    allPanes.push(pImage);
+    wrap.appendChild(pImage);
+  }
+
+  wireTabs(allTabs, allPanes, async (idx) => {
+    // Lazy-load image
+    if (tImage && idx === allTabs.indexOf(tImage) && pImage.dataset.loaded === '0') {
+      pImage.dataset.loaded = '1';
+      pImage.innerHTML = '<div class="empty-msg">Rendering image…</div>';
+      const imgRes = await a.get_image(node.path);
+      if (imgRes.ok) {
+        pImage.innerHTML = `<div class="img-box"><img src="${imgRes.data_uri}" title="${imgRes.width}×${imgRes.height}" /></div>`;
+      } else {
+        pImage.innerHTML = `<div class="empty-msg">${esc(imgRes.error)}</div>`;
+      }
+    }
+  });
+
+  contentEl.appendChild(wrap);
+}
+
+// ── Stats ──
+async function showStats() {
+  if (!currentNode || currentNode.type !== 'dataset') return;
+  const a = api(); if (!a) return;
+  showLoad('Computing statistics…');
+  const res = await a.get_stats(currentNode.path);
+  hideLoad();
+  if (!res.ok) { toast(res.error); return; }
+
+  // Find or create stats pane
+  const wrap = contentEl.querySelector('.fade-up');
+  if (!wrap) return;
+
+  // Check if stats tab already exists
+  const tabsEl = wrap.querySelector('.tabs');
+  let statsTab = tabsEl.querySelector('[data-label="Statistics"]');
+  if (!statsTab) {
+    statsTab = document.createElement('div');
+    statsTab.className = 'tab';
+    statsTab.textContent = 'Statistics';
+    statsTab.dataset.label = 'Statistics';
+    tabsEl.appendChild(statsTab);
+
+    const pane = document.createElement('div');
+    pane.className = 'pane';
+    pane.id = 'statsPane';
+    wrap.appendChild(pane);
+
+    // Wire it
+    statsTab.addEventListener('click', () => {
+      wrap.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+      wrap.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+      statsTab.classList.add('on');
+      pane.classList.add('on');
+    });
+  }
+
+  // Fill stats
+  const pane = wrap.querySelector('#statsPane') || document.createElement('div');
+  const s = res.stats;
+  pane.innerHTML = `<div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Minimum</div><div class="stat-value">${fmtNum(s.min)}</div></div>
+    <div class="stat-card"><div class="stat-label">Maximum</div><div class="stat-value">${fmtNum(s.max)}</div></div>
+    <div class="stat-card"><div class="stat-label">Mean</div><div class="stat-value">${fmtNum(s.mean)}</div></div>
+    <div class="stat-card"><div class="stat-label">Std Dev</div><div class="stat-value">${fmtNum(s.std)}</div></div>
+    <div class="stat-card"><div class="stat-label">Median</div><div class="stat-value">${fmtNum(s.median)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Elements</div><div class="stat-value">${s.total.toLocaleString()}</div></div>
+    <div class="stat-card"><div class="stat-label">NaN Count</div><div class="stat-value">${s.nan_count.toLocaleString()}</div></div>
+    ${s.unique >= 0 ? `<div class="stat-card"><div class="stat-label">Unique Values</div><div class="stat-value">${s.unique.toLocaleString()}</div></div>` : ''}
+  </div>`;
+
+  // Activate stats tab
+  statsTab.click();
+  toast('Statistics computed');
+}
+
+// ── Attrs helper ──
+function renderAttrs(attrs) {
+  const div = document.createElement('div');
+  div.className = 'attrs-grid';
+  const keys = Object.keys(attrs || {});
+  if (keys.length === 0) {
+    div.innerHTML = '<div class="empty-msg" style="height:auto;padding:32px">No attributes</div>';
+    return div;
+  }
+  for (const k of keys) {
+    const row = document.createElement('div');
+    row.className = 'attr-row';
+    let v = attrs[k];
+    if (Array.isArray(v)) v = '[' + v.slice(0, 50).join(', ') + (v.length > 50 ? ', …' : '') + ']';
+    row.innerHTML = `<span class="attr-k" title="${esc(k)}">${esc(k)}</span><span class="attr-v">${esc(String(v))}</span>`;
+    div.appendChild(row);
+  }
+  return div;
+}
+
+// ── Tab helpers ──
+function mkTab(label, active) {
+  const el = document.createElement('div');
+  el.className = 'tab' + (active ? ' on' : '');
+  el.textContent = label;
+  el.dataset.label = label;
+  return { el, label };
+}
+
+function wireTabs(tabs, panes, onSwitch) {
+  tabs.forEach((t, i) => {
+    t.el.addEventListener('click', () => {
+      tabs.forEach(tt => tt.el.classList.remove('on'));
+      panes.forEach(p => p.classList.remove('on'));
+      t.el.classList.add('on');
+      panes[i].classList.add('on');
+      if (onSwitch) onSwitch(i);
+    });
+  });
+}
+
+// ── Utility ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function fmtNum(n) { return typeof n === 'number' ? (Number.isInteger(n) ? n.toLocaleString() : n.toPrecision(8)) : String(n); }
+function formatLabel(k) { return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
+// ── Recent files ──
+async function loadRecent() {
+  const a = api(); if (!a) return;
+  try {
+    const recent = await a.get_recent_files();
+    const list = $('recentList');
+    list.innerHTML = '';
+    if (!recent || recent.length === 0) return;
+    const title = document.createElement('div');
+    title.className = 'recent-title';
+    title.textContent = 'Recent Files';
+    list.appendChild(title);
+    for (const fp of recent) {
+      const item = document.createElement('div');
+      item.className = 'recent-item';
+      const name = fp.split(/[/\\]/).pop();
+      item.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><span>${esc(name)}</span>`;
+      item.title = fp;
+      item.addEventListener('click', () => openFile(fp));
+      list.appendChild(item);
+    }
+  } catch(_) {}
+}
+
+// ── Events ──
+$('btnOpen').addEventListener('click', () => openFile(null));
+$('dropZone').addEventListener('click', () => openFile(null));
+$('btnExport').addEventListener('click', async () => {
+  if (!currentNode || currentNode.type !== 'dataset') return;
+  const a = api(); if (!a) return;
+  const res = await a.export_csv_dialog(currentNode.path);
+  if (res.ok) toast('Exported to ' + res.path.split(/[/\\]/).pop());
+  else if (res.error !== 'cancelled') toast('Export failed: ' + res.error);
+});
+$('btnStats').addEventListener('click', showStats);
+
+$('searchInput').addEventListener('input', () => {
+  filterText = $('searchInput').value.trim();
+  if (treeData) renderTree(treeData);
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key === 'o') { e.preventDefault(); openFile(null); }
+  if ((e.ctrlKey||e.metaKey) && e.key === 'e') { e.preventDefault(); $('btnExport').click(); }
+  if (e.key === '/' && document.activeElement !== $('searchInput')) { e.preventDefault(); $('searchInput').focus(); }
+  if (e.key === 'Escape') { $('searchInput').blur(); $('searchInput').value = ''; filterText = ''; if (treeData) renderTree(treeData); }
+});
+
+// Resize handle
+let resizing = false;
+const rh = $('resizeHandle');
+rh.addEventListener('mousedown', e => { e.preventDefault(); resizing = true; rh.classList.add('dragging'); document.body.style.cursor = 'col-resize'; });
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  const w = Math.max(180, Math.min(500, e.clientX));
+  mainEl.style.gridTemplateColumns = w + 'px 1fr';
+  rh.style.left = (w - 1) + 'px';
+});
+document.addEventListener('mouseup', () => { if (resizing) { resizing = false; rh.classList.remove('dragging'); document.body.style.cursor = ''; } });
+
+// ── Init ──
+window.addEventListener('pywebviewready', () => { loadRecent(); });
+setTimeout(() => { if (api()) loadRecent(); }, 500);
+</script>
+</body>
+</html>

@@ -116,3 +116,9 @@ CSV export always rounds to 8 decimal places.
 - numpy ≥ 1.24
 - pywebview ≥ 5.0
 - Pillow ≥ 10.0 (for image preview; installed by `requirements.txt`, and only the Image tab fails without it)
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

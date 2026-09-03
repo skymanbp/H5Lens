@@ -9,3 +9,5 @@ __pycache__/
 build/
 dist/
 *.spec
+# local build venv (build.py is run with .venv/Scripts/python.exe)
+.venv/

@@ -476,8 +476,8 @@
           <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </div>
         <div class="drop-title">Open an HDF5 file</div>
-        <div class="drop-sub">Click to browse · or drag and drop</div>
-        <div class="drop-fmts"><span>.h5</span><span>.hdf5</span><span>.he5</span><span>.nc</span></div>
+        <div class="drop-sub">Click to browse</div>
+        <div class="drop-fmts"><span>.h5</span><span>.hdf5</span><span>.hdf</span><span>.he5</span><span>.nc</span></div>
       </div>
       <div class="recent-list" id="recentList"></div>
     </div>
@@ -816,7 +816,7 @@ async function renderDataset(node) {
   tabsEl.append(tData.el, tAttrs.el, tDetails.el);
 
   // Image tab?
-  const canImg = (node.shape.length === 2 || (node.shape.length === 3 && node.shape[2] <= 4));
+  const canImg = (node.shape.length === 2 || (node.shape.length === 3 && [1, 3, 4].includes(node.shape[2])));
   let tImage = null;
   if (canImg && total <= 4000000) {
     tImage = mkTab('Image', false);

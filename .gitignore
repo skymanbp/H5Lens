@@ -2,3 +2,10 @@
 # cc-enforcer index / cc-memory state: machine-local, never content
 .ce/
 .ccm/
+# Python bytecode
+__pycache__/
+*.pyc
+# PyInstaller output (build.py writes build/, dist/ and H5Lens.spec into the repo root)
+build/
+dist/
+*.spec

@@ -21,6 +21,33 @@ H5Lens/
 
 ---
 
+## Download
+
+Prebuilt Windows executable: **[latest release](https://github.com/skymanbp/H5Lens/releases/latest)** — current version **v1.0.1**.
+
+`H5Lens.exe` is a single-file PyInstaller build for Windows x64 and needs no
+Python installation. Verify the download before running it:
+
+```powershell
+Get-FileHash H5Lens.exe -Algorithm SHA256
+```
+
+The SHA-256 published with v1.0.1 (`Get-FileHash` prints it uppercase; hex
+comparison is case-insensitive):
+
+```
+6861a71799017ebaf3037e2d37383086c50fd66c4712050d0aae529da66b44f7
+```
+
+Place `config.json` next to the exe to change the defaults, and run
+`register.bat` to associate `.h5` / `.hdf5` / `.hdf` / `.he5` / `.nc` with it
+(`unregister.bat` removes the associations).
+
+To compile the exe yourself instead, see
+[Build as Standalone .exe](#build-as-standalone-exe).
+
+---
+
 ## Quick Start
 
 ### 1. Install dependencies

@@ -2,7 +2,7 @@
 
 Each release's section here is also its GitHub release text.
 
-## [1.1.0] — Unreleased
+## [1.1.0] — 2026-10-02
 
 ### Fixed
 

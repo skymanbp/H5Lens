@@ -41,7 +41,8 @@ jobs:
         shell: pwsh
         run: |
           $h = (Get-FileHash dist\H5Lens.exe -Algorithm SHA256).Hash.ToLower()
-          Set-Content -Path dist\SHA256SUMS.txt -Value "$h  H5Lens.exe" -Encoding ascii
+          # LF, so `sha256sum -c SHA256SUMS.txt` also works (a CR would become part of the file name)
+          [IO.File]::WriteAllText("$PWD\dist\SHA256SUMS.txt", "$h  H5Lens.exe`n")
           $py = python -c "import sys; print(sys.version.split()[0])"
           Add-Content -Path notes.md -Value "`n---`n`nH5Lens.exe: single-file PyInstaller 6.22.2 build, Windows x64, Python $py, built and self-tested by this workflow.`nSHA-256: $h" -Encoding utf8
       - name: Publish

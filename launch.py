@@ -240,7 +240,61 @@ def enable_file_drop(window):
         pass
 
 
+def self_test(report_path):
+    """Check a build without opening a window; write a JSON report.
+
+    A windowed exe has no console, so the result goes to a file. Covers
+    what a frozen bundle can miss: the packages, viewer.html and the
+    bundled fonts, and one pass through the engine on a temporary file.
+    Returns the process exit code (0 = every check passed).
+    """
+    import tempfile
+    checks = {}
+
+    def run(name, fn):
+        try:
+            res = fn()
+            checks[name] = {"ok": res is not False, "detail": "" if res in (None, True, False) else str(res)}
+        except Exception as e:
+            checks[name] = {"ok": False, "detail": f"{type(e).__name__}: {e}"}
+
+    from lib import __version__
+    run("import webview", lambda: __import__("webview").__name__)
+    run("import webview.dom", lambda: __import__("webview.dom").__name__)
+    if sys.platform == "win32":
+        run("import winforms backend", lambda: __import__("webview.platforms.winforms").__name__)
+    lib_dir = get_resource_dir() / "lib"
+    run("viewer.html", lambda: (lib_dir / "viewer.html").is_file())
+    run("fonts", lambda: len(list((lib_dir / "fonts").glob("*.woff2"))) == 6
+        and (lib_dir / "fonts" / "fonts.css").is_file())
+
+    def engine_pass():
+        import h5py
+        import numpy as np
+        from lib.h5engine import H5Engine
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "t.h5")
+            with h5py.File(p, "w") as f:
+                f["cube"] = np.arange(24.0).reshape(2, 3, 4)
+            eng = H5Engine({})
+            assert eng.open(p)["ok"]
+            assert eng.get_data("/cube", ["row", 1, "col"])["rows"][1][1:3] == [16.0, 17.0]
+            assert eng.get_image_base64("/cube", [0, "row", "col"])["ok"]
+            assert eng.export_csv("/cube", os.path.join(d, "t.csv"))["ok"]
+            eng.close()
+    run("engine", engine_pass)
+
+    ok = all(c["ok"] for c in checks.values())
+    report = {"version": __version__, "frozen": bool(getattr(sys, "frozen", False)),
+              "python": sys.version.split()[0], "ok": ok, "checks": checks}
+    with open(report_path, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2)
+    return 0 if ok else 1
+
+
 if __name__ == "__main__":
+    if len(sys.argv) == 3 and sys.argv[1] == "--self-test":
+        sys.exit(self_test(sys.argv[2]))
     try:
         main()
     except Exception as e:

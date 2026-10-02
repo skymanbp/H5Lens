@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>H5 Lens</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  @import url('fonts/fonts.css');   /* bundled DM Sans + JetBrains Mono: same look offline */
 
   :root {
     --bg-0: #0b0e14;
@@ -284,6 +284,24 @@
   }
   .dtbl tbody tr:hover td { background: var(--bg-hover); }
   .dtbl tbody tr:hover td.ri { background: var(--bg-2); }
+
+  /* N-D plane picker */
+  .plane-bar {
+    display: flex; align-items: center; gap: 6px 14px; flex-wrap: wrap;
+    padding: 6px 14px; background: var(--bg-1); flex-shrink: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--mono); font-size: 11px; color: var(--tx-3);
+  }
+  .plane-ax { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .plane-ax b { font-weight: 500; color: var(--tx-2); }
+  .plane-ax select, .plane-ax input {
+    background: var(--bg-2); color: var(--tx-1); border: 1px solid var(--border);
+    border-radius: 4px; font-family: var(--mono); font-size: 11px; padding: 2px 4px; outline: none;
+  }
+  .plane-ax input { width: 70px; }
+  .plane-ax select:focus, .plane-ax input:focus { border-color: var(--accent); }
+  .plane-bar .fill { flex: 1; }
+  .pane-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
   /* scalar */
   .scalar-box {
@@ -931,6 +949,13 @@ function makeTabs(wrap) {
       return pane;
     },
     get(label) { const t = list.find(t => t.label === label); return t ? t.pane : null; },
+    // Load a lazy pane again: now if it is showing, else when next shown.
+    reload(label) {
+      const t = list.find(t => t.label === label);
+      if (!t) return;
+      t.loaded = false;
+      if (t.el.classList.contains('on')) tabs.show(label);
+    },
     show(label) {
       for (const t of list) {
         const on = t.label === label;
@@ -1044,28 +1069,25 @@ async function renderDataset(node, token) {
   ], p));
   const tabs = makeTabs(wrap);
 
-  // Data
+  // Data (a dataset with 3+ axes shows one 2-D plane, picked in a bar above)
+  const sh = node.shape || [];
+  const nd = !node.null && sh.length >= 3;
   const pData = document.createElement('div');
-  if (!dataRes.ok) {
-    pData.innerHTML = errBox(dataRes.error);
-  } else if (dataRes.mode === 'scalar') {
-    pData.innerHTML = `<div class="scalar-box"><div class="scalar-inner"><div class="scalar-lbl">Scalar Value</div><div class="scalar-val">${esc(fmtVal(dataRes.value))}</div></div></div>`;
-  } else if (dataRes.rows.length === 0) {
-    pData.innerHTML = '<div class="empty-msg">Empty dataset (no elements)</div>';
-  } else {
-    if (dataRes.truncated) {
-      let msg;
-      if (dataRes.mode === '2d') {
-        msg = `Preview: ${fmtInt(dataRes.shown_rows)} of ${fmtInt(dataRes.total_rows)} rows × ${fmtInt(dataRes.shown_cols)} of ${fmtInt(dataRes.total_cols)} columns`;
-      } else if (dataRes.mode === 'nd') {
-        msg = `Preview: first ${fmtInt(dataRes.shown)} of ${fmtInt(dataRes.total_elements)} elements`;
-      } else {
-        msg = `Preview: first ${fmtInt(dataRes.shown_rows)} of ${fmtInt(dataRes.total_rows)} rows`;
-      }
-      pData.appendChild(div('tbl-notice', esc(msg + ' · Export CSV for everything')));
-    }
-    pData.appendChild(div('tbl-wrap', tableHtml(dataRes.headers, dataRes.rows)));
+  const dataHost = nd ? div('pane-body') : pData;
+  let plane = nd ? dataRes.plane : null;
+  if (nd && plane) {
+    let seq = 0;
+    pData.appendChild(planeBar(sh, plane, async next => {
+      plane = next;
+      const my = ++seq;
+      const res = await a.get_data(p, plane);
+      if (my !== seq || token !== S.token) return;   // a newer plane, or another node
+      fillData(dataHost, res);
+      if (!wholeImg) tabs.reload('Image');        // an RGB image is the whole array
+    }));
   }
+  if (nd) pData.appendChild(dataHost);
+  fillData(dataHost, dataRes);
   tabs.add('Data', pData);
   tabs.add('Attributes', renderAttrs(attrRes));
 
@@ -1082,22 +1104,101 @@ async function renderDataset(node, token) {
   }
   tabs.add('Details', pDetails);
 
-  // Image (lazy)
-  const sh = node.shape || [];
-  const imgShape = !node.null && (sh.length === 2 || (sh.length === 3 && [1, 3, 4].includes(sh[2])));
-  const pixels = imgShape ? sh[0] * sh[1] : 0;
-  if (imgShape && pixels > 0 && pixels <= S.cfg.maxImagePx) {
-    tabs.add('Image', document.createElement('div'), pane => loadImage(p, pane));
+  // Image (lazy). 2-D and H×W×1/3/4 arrays render whole; any other N-D
+  // dataset renders the plane chosen in the Data tab.
+  const wholeImg = !node.null && (sh.length === 2 || (sh.length === 3 && [1, 3, 4].includes(sh[2])));
+  const pixels = wholeImg ? sh[0] * sh[1] : 0;
+  if (wholeImg && pixels > 0 && pixels <= S.cfg.maxImagePx) {
+    tabs.add('Image', document.createElement('div'), pane => loadImage(p, pane, null));
+  } else if (nd && plane && node.size > 0) {
+    tabs.add('Image', document.createElement('div'), pane => loadImage(p, pane, plane));
   }
 
   mountView(node, wrap, tabs, token);
 }
 
-async function loadImage(path, pane) {
+function fillData(host, res) {
+  host.innerHTML = '';
+  if (!res.ok) { host.innerHTML = errBox(res.error); return; }
+  if (res.mode === 'scalar') {
+    host.innerHTML = `<div class="scalar-box"><div class="scalar-inner"><div class="scalar-lbl">Scalar Value</div><div class="scalar-val">${esc(fmtVal(res.value))}</div></div></div>`;
+    return;
+  }
+  if (res.rows.length === 0) { host.innerHTML = '<div class="empty-msg">Empty dataset (no elements)</div>'; return; }
+  if (res.truncated) {
+    const msg = res.mode === '2d'
+      ? `Preview: ${fmtInt(res.shown_rows)} of ${fmtInt(res.total_rows)} rows × ${fmtInt(res.shown_cols)} of ${fmtInt(res.total_cols)} columns`
+      : `Preview: first ${fmtInt(res.shown_rows)} of ${fmtInt(res.total_rows)} rows`;
+    host.appendChild(div('tbl-notice', esc(msg + ' · Export CSV for everything')));
+  }
+  host.appendChild(div('tbl-wrap', tableHtml(res.headers, res.rows)));
+}
+
+function planeText(plane) {
+  const fixed = plane.map((v, ax) => typeof v === 'number' ? `axis ${ax} = ${v}` : null).filter(Boolean);
+  return `rows: axis ${plane.indexOf('row')} · columns: axis ${plane.indexOf('col')} · ` + fixed.join(', ');
+}
+
+// One control per axis: rows, columns, or an index. Exactly one axis is rows
+// and one is columns; choosing a role takes it from the axis that had it.
+function planeBar(shape, plane, onChange) {
+  plane = plane.slice();
+  const bar = div('plane-bar');
+  const emit = () => onChange(plane.slice());
+  const draw = () => {
+    bar.innerHTML = '<span>Plane</span>' + shape.map((n, ax) => {
+      const v = plane[ax];
+      const role = typeof v === 'number' ? 'idx' : v;
+      const opt = (val, label) => `<option value="${val}"${role === val ? ' selected' : ''}>${label}</option>`;
+      return `<span class="plane-ax" data-ax="${ax}"><b>axis ${ax}</b>` +
+        `<select title="Axis ${ax} has length ${fmtInt(n)}">${opt('row', 'rows')}${opt('col', 'columns')}${opt('idx', 'index')}</select>` +
+        (role === 'idx' ? `<input type="number" min="0" max="${Math.max(n - 1, 0)}" value="${v}" title="Index along axis ${ax}: 0 to ${fmtInt(Math.max(n - 1, 0))}">` : '') +
+        `<span>of ${fmtInt(n)}</span></span>`;
+    }).join('') + '<span class="fill"></span><span>Statistics and Export use the whole dataset</span>';
+  };
+  bar.addEventListener('change', e => {
+    const sel = e.target.closest('select');
+    if (!sel) return;
+    const ax = Number(sel.closest('.plane-ax').dataset.ax);
+    const old = plane[ax];
+    if (sel.value === 'idx') {
+      // the role this axis gives up goes to the first index axis
+      const j = plane.findIndex((v, k) => k !== ax && typeof v === 'number');
+      plane[j] = old;
+      plane[ax] = 0;
+    } else {
+      const j = plane.indexOf(sel.value);
+      plane[j] = typeof old === 'number' ? Math.min(old, Math.max(shape[j] - 1, 0)) : old;
+      plane[ax] = sel.value;
+    }
+    draw();
+    emit();
+  });
+  let inputT = null;
+  bar.addEventListener('input', e => {
+    const inp = e.target.closest('input');
+    if (!inp) return;
+    const ax = Number(inp.closest('.plane-ax').dataset.ax);
+    const v = parseInt(inp.value, 10);
+    if (Number.isNaN(v)) return;
+    const c = clamp(v, 0, Math.max(shape[ax] - 1, 0));
+    if (c !== v) inp.value = c;
+    if (c === plane[ax]) return;
+    plane[ax] = c;
+    clearTimeout(inputT);
+    inputT = setTimeout(emit, 150);    // holding an arrow key stays smooth
+  });
+  draw();
+  return bar;
+}
+
+async function loadImage(path, pane, plane) {
+  const my = pane.dataset.seq = String(Number(pane.dataset.seq || 0) + 1);
   pane.innerHTML = '<div class="empty-msg">Rendering image…</div>';
-  const res = await (await apiReady).get_image(path);
+  const res = await (await apiReady).get_image(path, plane);
+  if (pane.dataset.seq !== my) return;           // a newer plane was asked for
   if (!res.ok) { pane.innerHTML = errBox(res.error); return; }
-  const note = `${res.width} × ${res.height} px · ` +
+  const note = (plane ? planeText(plane) + ' · ' : '') + `${res.width} × ${res.height} px · ` +
     (res.normalized ? 'values scaled linearly from min → max (NaN/Inf shown black)' : 'raw 8-bit values') +
     ' · click to toggle fit / actual size';
   pane.innerHTML = `<div class="img-note">${esc(note)}</div><div class="img-box"><img alt="" src="${res.data_uri}" /></div>`;
@@ -1308,7 +1409,9 @@ document.addEventListener('mouseup', () => {
   resizing = false;
   rh.classList.remove('dragging');
   document.body.style.cursor = '';
-  try { localStorage.setItem('h5lens.sidebar', parseInt(getComputedStyle(mainEl).getPropertyValue('--sbw'), 10)); } catch (_) {}
+  // Saved in config.json: pywebview's private mode discards localStorage.
+  const w = parseInt(getComputedStyle(mainEl).getPropertyValue('--sbw'), 10);
+  apiReady.then(a => a.set_sidebar_width(w)).catch(() => {});
 });
 
 // ═══════════════════ Init ═══════════════════
@@ -1318,9 +1421,7 @@ apiReady.then(async a => {
     const v = cfg.viewer || {};
     S.cfg.precision = clamp(parseInt(v.float_precision, 10) || 8, 1, 17);
     S.cfg.maxImagePx = Number(v.max_image_pixels) || 4000000;
-    let w = Number(v.sidebar_width) || 280;
-    try { w = Number(localStorage.getItem('h5lens.sidebar')) || w; } catch (_) {}
-    setSidebar(w);
+    setSidebar(Number(v.sidebar_width) || 280);
     if (cfg.version) $('welcomeFoot').textContent = 'H5 Lens v' + cfg.version;
   } catch (_) {}
   loadRecent();

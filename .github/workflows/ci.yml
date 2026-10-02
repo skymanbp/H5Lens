@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs:
+    # README / CHANGELOG / config against the code; standard library only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the version check reads the v* tags
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python scripts/check_doc_drift.py
+
+  tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.13"]  # README promises 3.10+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest tests -W error
+
+  build:
+    needs: [docs, tests]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -r requirements.txt pyinstaller==6.22.2
+      - run: python build.py
+      - name: Self-test the exe (no window)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\H5Lens.exe -ArgumentList '--self-test', 'self-test.json' -Wait -PassThru
+          Get-Content self-test.json
+          if ($p.ExitCode -ne 0) { throw "self-test exit code $($p.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: H5Lens-exe
+          path: dist/H5Lens.exe

@@ -56,6 +56,7 @@ def main():
     # Build datas list for .spec
     datas_lines = []
     datas_lines.append(f"    (r'{base / 'lib' / 'viewer.html'}', 'lib'),")
+    datas_lines.append(f"    (r'{base / 'lib' / 'fonts'}', 'lib/fonts'),")
     datas_lines.append(f"    (r'{base / 'config.json'}', '.'),")
 
     # Bundle entire package directories as data
@@ -93,15 +94,16 @@ def main():
         "lib", "lib.app", "lib.h5engine",
         "h5py", "h5py._hl", "h5py._hl.files", "h5py._hl.group", "h5py._hl.dataset",
         "h5py.defs", "h5py.utils", "h5py._errors", "h5py._objects", "h5py._conv",
-        "numpy", "numpy.core", "numpy.core._methods", "numpy.core._dtype_ctypes",
-        "numpy.random", "numpy.linalg", "numpy.fft",
+        # numpy 2 moved numpy.core to numpy._core; PyInstaller's numpy hook
+        # collects it, so only the top-level package is named here.
+        "numpy",
         "PIL", "PIL.Image", "PIL.PngImagePlugin",
         "webview",
         "webview.platforms.winforms",
         "webview.platforms.cocoa",
         "webview.platforms.gtk",
         "webview.platforms.qt",
-        "clr", "System.Windows.Forms", "System.Threading",
+        "clr",      # .NET namespaces (System.Windows.Forms, ...) load through clr at run time
     ]
     hidden_str = ",\n        ".join(f"'{h}'" for h in hiddenimports)
 

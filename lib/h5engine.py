@@ -25,6 +25,9 @@ _BLOCK_ELEMENTS = 1 << 22
 # Median and unique count need all finite values in memory at once.
 _MEDIAN_MAX_ELEMENTS = 20_000_000
 _UNIQUE_MAX_ELEMENTS = 1_000_000
+# Characters that can occur in a number's CSV text (digits, sign, exponent,
+# nan / inf, True / False) or that make the csv module quote a field.
+_NUMBER_CHARS = set("0123456789.+-eEnaifTrueFals\"\r\n")
 
 
 class H5Engine:
@@ -178,8 +181,13 @@ class H5Engine:
             return None, {"ok": False, "error": "Not a dataset"}
         return obj, None
 
-    def get_data(self, path: str) -> dict:
-        """Read the start of a dataset for display as a table."""
+    def get_data(self, path: str, plane=None) -> dict:
+        """Read the start of a dataset for display as a table.
+
+        A dataset with three or more axes is shown one 2-D plane at a time;
+        `plane` picks it (see `_plane`) and defaults to the last two axes at
+        index 0 of every other axis.
+        """
         try:
             obj, err = self._dataset(path)
             if err:
@@ -212,64 +220,73 @@ class H5Engine:
             if len(shape) == 2:
                 nr = min(shape[0], max_rows)
                 nc = min(shape[1], max_cols)
-                more_cols = shape[1] > nc
-                values = self._array_to_json(obj[:nr, :nc]) if nr and nc else [[] for _ in range(nr)]
-                headers = ["Row"] + [str(c) for c in range(nc)] + (["..."] if more_cols else [])
-                tail = ["..."] if more_cols else []
-                return {
-                    "ok": True,
-                    "mode": "2d",
-                    "headers": headers,
-                    "rows": [[r] + row + tail for r, row in enumerate(values)],
-                    "total_rows": shape[0],
-                    "total_cols": shape[1],
-                    "shown_rows": nr,
-                    "shown_cols": nc,
-                    "truncated": shape[0] > nr or more_cols,
-                }
+                block = obj[:nr, :nc] if nr and nc else None
+                return self._table_2d(block, shape[0], shape[1], nr, nc)
 
-            # 3D+: the first elements in C order, read as one small hyperslab
-            total = self._numel(shape)
-            n = min(total, max_rows)
-            flat = self._read_flat_prefix(obj, n)
-            values = self._array_to_json(flat)
-            positions = np.unravel_index(np.arange(n), shape) if n else [[] for _ in shape]
-            rows = [
-                [i, "[" + ", ".join(str(int(p[i])) for p in positions) + "]", values[i]]
-                for i in range(n)
-            ]
-            return {
-                "ok": True,
-                "mode": "nd",
-                "headers": ["Index", "Position", "Value"],
-                "rows": rows,
-                "total_elements": total,
-                "shown": n,
-                "truncated": total > n,
-            }
+            # 3D+: one plane, of which only the previewed corner is read
+            plane, r_ax, c_ax = self._plane(shape, plane)
+            # An empty fixed axis leaves nothing to read in any plane
+            nr = min(shape[r_ax], max_rows) if self._numel(shape) else 0
+            nc = min(shape[c_ax], max_cols)
+            block = self._read_plane(obj, plane, nr, nc) if nr and nc else None
+            res = self._table_2d(block, shape[r_ax], shape[c_ax], nr, nc)
+            res["plane"] = plane
+            return res
 
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    @staticmethod
-    def _read_flat_prefix(obj, n: int) -> np.ndarray:
-        """Read the first n elements (C order) of an N-D dataset.
+    def _table_2d(self, block, total_rows, total_cols, nr, nc) -> dict:
+        more_cols = total_cols > nc
+        values = self._array_to_json(block) if block is not None else [[] for _ in range(nr)]
+        tail = ["..."] if more_cols else []
+        return {
+            "ok": True,
+            "mode": "2d",
+            "headers": ["Row"] + [str(c) for c in range(nc)] + tail,
+            "rows": [[r] + row + tail for r, row in enumerate(values)],
+            "total_rows": total_rows,
+            "total_cols": total_cols,
+            "shown_rows": nr,
+            "shown_cols": nc,
+            "truncated": total_rows > nr or more_cols,
+        }
 
-        Indexes 0 along leading axes while n fits inside a single slice, then
-        takes just enough of the next axis, so at most ~2n elements are read
-        instead of the whole dataset.
+    @staticmethod
+    def _plane(shape, plane):
+        """Validate the choice of a 2-D plane through an N-D dataset.
+
+        `plane` has one entry per axis: "row" and "col" (exactly one each)
+        mark the axes laid out as table rows / columns (or image height /
+        width), and every other entry is an index along that axis. Returns
+        (plane, row_axis, col_axis).
         """
-        if n == 0:
-            return np.empty((0,), dtype=obj.dtype)
-        shape = obj.shape
-        sel = []
-        for axis in range(len(shape)):
-            inner = math.prod(shape[axis + 1:])
-            if n > inner or axis == len(shape) - 1:
-                sel.append(slice(0, min(shape[axis], -(-n // inner))))
-                break
-            sel.append(0)
-        return np.asarray(obj[tuple(sel)]).reshape(-1)[:n]
+        nd = len(shape)
+        if plane is None:
+            plane = [0] * (nd - 2) + ["row", "col"]
+        if not isinstance(plane, (list, tuple)) or len(plane) != nd:
+            raise ValueError(f"A plane needs one entry per axis ({nd})")
+        plane = list(plane)
+        if plane.count("row") != 1 or plane.count("col") != 1:
+            raise ValueError("Choose exactly one row axis and one column axis")
+        for ax, v in enumerate(plane):
+            if v in ("row", "col"):
+                continue
+            if isinstance(v, bool) or not isinstance(v, int):
+                raise ValueError(f"Axis {ax}: index must be an integer, got {v!r}")
+            if not 0 <= v < max(shape[ax], 1):     # 0 stays valid on an empty axis
+                raise ValueError(f"Axis {ax}: index {v} is outside 0..{shape[ax] - 1}")
+        return plane, plane.index("row"), plane.index("col")
+
+    @staticmethod
+    def _read_plane(obj, plane, nr=None, nc=None) -> np.ndarray:
+        """Read rows [0, nr) x columns [0, nc) of a plane (all when None)."""
+        sel = tuple(
+            slice(0, nr) if v == "row" else slice(0, nc) if v == "col" else v
+            for v in plane
+        )
+        arr = np.asarray(obj[sel])
+        return arr.T if plane.index("row") > plane.index("col") else arr
 
     # -- Attributes ---------------------------------------------------
 
@@ -429,32 +446,43 @@ class H5Engine:
 
     # -- Image Rendering ----------------------------------------------
 
-    def get_image_base64(self, path: str) -> dict:
-        """Render a 2D/3D dataset as a PNG image, return as base64 data URI."""
+    def get_image_base64(self, path: str, plane=None) -> dict:
+        """Render a dataset as a PNG image, return as base64 data URI.
+
+        Without `plane`: a 2-D dataset (grayscale) or an H x W x 1/3/4 one
+        (grayscale / RGB / RGBA). With `plane`: that 2-D plane of an N-D
+        dataset (see `_plane`), in grayscale.
+        """
         try:
             obj, err = self._dataset(path)
             if err:
                 return err
 
             shape = obj.shape
-            ok_shape = shape is not None and (
-                len(shape) == 2 or (len(shape) == 3 and shape[2] in (1, 3, 4))
-            )
-            if not ok_shape:
-                return {"ok": False, "error": f"Unsupported shape for image: {shape}"}
+            if plane is not None and shape is not None and len(shape) >= 3:
+                plane, r_ax, c_ax = self._plane(shape, plane)
+                height, width = shape[r_ax], shape[c_ax]
+            else:
+                plane = None
+                ok_shape = shape is not None and (
+                    len(shape) == 2 or (len(shape) == 3 and shape[2] in (1, 3, 4))
+                )
+                if not ok_shape:
+                    return {"ok": False, "error": f"Unsupported shape for image: {shape}"}
+                height, width = shape[0], shape[1]
             if obj.dtype.kind not in "biufc":
                 return {"ok": False, "error": f"Cannot render {self._fmt_dtype(obj.dtype)} data as an image"}
 
-            pixels = shape[0] * shape[1]
+            pixels = height * width
             max_px = int(self.config.get("viewer", {}).get("max_image_pixels", 4_000_000))
-            if pixels == 0:
+            if self._numel(shape) == 0:
                 return {"ok": False, "error": "Dataset is empty"}
             if pixels > max_px:
                 return {"ok": False, "error": f"Image too large ({pixels:,} pixels, max {max_px:,})"}
 
             from PIL import Image
 
-            data = np.asarray(obj[()])
+            data = np.asarray(obj[()]) if plane is None else self._read_plane(obj, plane)
             if data.ndim == 3 and data.shape[2] == 1:
                 data = data[:, :, 0]
 
@@ -514,7 +542,11 @@ class H5Engine:
             with open(save_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f, delimiter=sep, lineterminator=line_end)
 
-                if len(shape) == 0:
+                # Numbers never need quoting unless the separator could occur
+                # inside one, so their rows are joined directly (no csv module).
+                if len(shape) and obj.dtype.kind in "biuf" and not (set(sep) & _NUMBER_CHARS):
+                    self._export_numeric(obj, f, sep, line_end)
+                elif len(shape) == 0:
                     writer.writerow(["value"])
                     writer.writerow([conv(np.asarray(obj[()]).reshape(1))[0]])
                 elif len(shape) == 1:
@@ -544,10 +576,64 @@ class H5Engine:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    def _export_numeric(self, obj, f, sep: str, line_end: str):
+        """Write a numeric dataset of one or more axes, block by block, in the
+        same layout as the generic path of `export_csv`."""
+        shape = obj.shape
+        if len(shape) == 1:
+            f.write(f"index{sep}value{line_end}")
+        elif len(shape) == 2:
+            f.write(sep.join(f"col_{c}" for c in range(shape[1])) + line_end)
+        else:
+            f.write(sep.join([f"dim_{d}" for d in range(len(shape))] + ["value"]) + line_end)
+        inner = shape[1:]
+        # "j,k,…," for every position inside one row, built once when a row fits
+        # in a block (a block then holds whole rows); else per block below.
+        row_prefix = self._index_prefixes(inner, sep) if len(shape) > 2 and \
+            self._numel(inner) <= _BLOCK_ELEMENTS else None
+        r0 = 0
+        for block in self._iter_blocks(obj):
+            if len(shape) == 2:
+                lines = map(sep.join, self._num_strs(block))
+            elif len(shape) == 1 or row_prefix is None:
+                idx = np.indices(block.shape).reshape(len(shape), -1).T
+                idx[:, 0] += r0
+                lines = (sep.join(i) + sep + v for i, v in
+                         zip(idx.astype(str).tolist(), self._num_strs(block.reshape(-1))))
+            else:
+                vals = self._num_strs(block.reshape(-1))
+                n = len(row_prefix)
+                lines = (f"{r0 + k // n}{sep}{row_prefix[k % n]}{v}" for k, v in enumerate(vals))
+            f.write(line_end.join(lines) + line_end)
+            r0 += block.shape[0]
+
+    @staticmethod
+    def _index_prefixes(shape, sep: str) -> list:
+        """'i{sep}j{sep}…{sep}' for every index of `shape`, in C order."""
+        out = [""]
+        for n in shape:
+            col = [f"{i}{sep}" for i in range(n)]
+            out = [p + c for p in out for c in col]
+        return out
+
+    @staticmethod
+    def _num_strs(a: np.ndarray) -> list:
+        """Shortest strings that read back as exactly the stored numbers.
+
+        float64 and integers use Python's repr (as the csv module would);
+        narrower floats use numpy's shortest repr for their own precision,
+        which still round-trips but avoids printing float64 noise digits.
+        """
+        if a.dtype.kind == "f" and a.dtype.itemsize < 8:
+            return a.astype(str).tolist()
+        if a.ndim == 2:
+            return [list(map(repr, r)) for r in a.tolist()]
+        return list(map(repr, a.tolist()))
+
     def _csv_converter(self, dtype):
         """Return a function mapping an array to (nested) lists of CSV cells."""
         if dtype.kind in "biuf":
-            return lambda a: a.tolist()       # floats keep full precision (repr)
+            return self._num_strs             # full precision, as the fast path
 
         def conv(a):
             return np.vectorize(self._csv_cell, otypes=[object])(a).tolist() if a.size else a.tolist()

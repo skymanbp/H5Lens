@@ -88,9 +88,9 @@ class App:
 
     # -- Data Access --------------------------------------------------
 
-    def get_data(self, path: str) -> dict:
+    def get_data(self, path: str, plane=None) -> dict:
         with self._lock:
-            return self.engine.get_data(path)
+            return self.engine.get_data(path, plane)
 
     def get_attrs(self, path: str) -> dict:
         with self._lock:
@@ -104,9 +104,9 @@ class App:
         with self._lock:
             return self.engine.get_stats(path)
 
-    def get_image(self, path: str) -> dict:
+    def get_image(self, path: str, plane=None) -> dict:
         with self._lock:
-            return self.engine.get_image_base64(path)
+            return self.engine.get_image_base64(path, plane)
 
     # -- Export --------------------------------------------------------
 
@@ -156,6 +156,21 @@ class App:
     def clear_recent(self):
         self.config["recent_files"] = []
         self._save_config()
+
+    def set_sidebar_width(self, width) -> None:
+        """Remember a dragged sidebar width in config.json.
+
+        The page cannot keep it itself: pywebview runs WebView2 in private
+        mode, which discards localStorage when the window closes.
+        """
+        try:
+            width = int(width)
+        except (TypeError, ValueError):
+            return
+        viewer = self.config.setdefault("viewer", {})
+        if viewer.get("sidebar_width") != width:
+            viewer["sidebar_width"] = width
+            self._save_config()
 
     def _save_config(self):
         """Write config atomically so a crash never leaves a truncated file."""

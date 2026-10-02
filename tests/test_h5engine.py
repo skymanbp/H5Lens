@@ -92,10 +92,52 @@ def test_2d_truncation(eng):
     assert res["shown_cols"] == 4 and res["total_cols"] == 10
 
 
-def test_nd_preview_reads_prefix_with_positions(eng):
+CUBE = np.arange(2 * 3 * 40).reshape(2, 3, 40)
+
+
+def test_nd_default_plane_is_last_two_axes_at_index_0(eng):
     res = eng.get_data("/cube")
-    assert res["mode"] == "nd" and res["shown"] == 50 and res["total_elements"] == 240
-    assert res["rows"][45] == [45, "[0, 1, 5]", 45]
+    assert res["mode"] == "2d" and res["plane"] == [0, "row", "col"]
+    assert (res["total_rows"], res["total_cols"], res["shown_cols"]) == (3, 40, 4)
+    assert [r[1:5] for r in res["rows"]] == CUBE[0, :, :4].tolist()
+
+
+@pytest.mark.parametrize("plane, expect", [
+    (["row", 1, "col"], CUBE[:, 1, :]),
+    ([1, "col", "row"], CUBE[1].T),          # rows from a later axis: transposed
+    (["col", "row", 5], CUBE[:, :, 5].T),
+])
+def test_nd_plane_selection(eng, plane, expect):
+    res = eng.get_data("/cube", plane)
+    assert res["plane"] == plane and res["total_rows"] == expect.shape[0]
+    assert [r[1:1 + res["shown_cols"]] for r in res["rows"]] == expect[:, :4].tolist()
+
+
+@pytest.mark.parametrize("plane, msg", [
+    ([0, "row"], "one entry per axis"),
+    ([0, "row", "row"], "exactly one row"),
+    ([2, "row", "col"], "outside 0..1"),
+    (["row", 1.5, "col"], "must be an integer"),
+    (["row", True, "col"], "must be an integer"),
+])
+def test_nd_plane_rejects_bad_choices(eng, plane, msg):
+    res = eng.get_data("/cube", plane)
+    assert res["ok"] is False and msg in res["error"]
+
+
+def test_nd_plane_image_and_empty_axis(eng, tmp_path):
+    img = eng.get_image_base64("/cube", ["row", 2, "col"])
+    assert img["ok"] and (img["width"], img["height"]) == (40, 2)
+    assert "Unsupported shape" in eng.get_image_base64("/cube")["error"]
+    p = tmp_path / "e.h5"
+    with h5py.File(p, "w") as f:
+        f["z"] = np.zeros((0, 3, 4))
+    e = H5Engine(CFG)
+    e.open(str(p))
+    res = e.get_data("/z")
+    assert res["ok"] and res["rows"] == [] and res["total_cols"] == 4
+    assert "empty" in e.get_image_base64("/z", [0, "row", "col"])["error"].lower()
+    e.close()
 
 
 def test_scalar_and_strings_and_misc(eng):
@@ -132,26 +174,31 @@ def test_image(eng):
     assert "empty" in eng.get_image_base64("/empty2d")["error"].lower()
 
 
+def read_csv(path):
+    with open(path, newline="", encoding="utf-8") as f:     # export writes UTF-8
+        return list(csv.reader(f))
+
+
 def test_export_full_precision_and_chunked(eng, tmp_path):
     out = tmp_path / "tiny.csv"
     assert eng.export_csv("/grp/tiny", str(out))["ok"]
-    rows = list(csv.reader(out.open()))
+    rows = read_csv(out)
     assert rows[0] == ["index", "value"] and float(rows[1][1]) == 1.5e-12
 
     out = tmp_path / "mat.csv"
     eng.export_csv("/mat", str(out))
-    rows = list(csv.reader(out.open()))
+    rows = read_csv(out)
     assert len(rows) == 7 and len(rows[0]) == 10 and rows[2][3] == "13.0"
 
     out = tmp_path / "cube.csv"
     eng.export_csv("/cube", str(out))
-    rows = list(csv.reader(out.open()))
+    rows = read_csv(out)
     assert rows[0] == ["dim_0", "dim_1", "dim_2", "value"]
     assert len(rows) == 241 and rows[-1] == ["1", "2", "39", "239"]
 
     out = tmp_path / "vstr.csv"
     eng.export_csv("/vstr", str(out))
-    assert list(csv.reader(out.open()))[1:] == [["0", "x"], ["1", "yy"]]
+    assert read_csv(out)[1:] == [["0", "x"], ["1", "yy"]]
 
 
 def test_not_a_dataset_and_no_file(eng):
@@ -189,20 +236,44 @@ def test_streaming_matches_numpy(tmp_path, monkeypatch):
     e.close()
 
 
-@pytest.mark.parametrize("shape", [(2, 3, 4), (1, 1, 9), (5, 2, 2, 3), (3, 0, 2)])
-@pytest.mark.parametrize("n", [0, 1, 4, 5, 13, 1000])
-def test_read_flat_prefix(tmp_path, shape, n):
-    arr = np.arange(math_prod(shape)).reshape(shape)
-    p = tmp_path / "p.h5"
+@pytest.mark.parametrize("block", [3, 1 << 22])      # rows split / whole rows per block
+@pytest.mark.parametrize("sep", [",", ";", "\t", "e"])
+@pytest.mark.parametrize("data", [
+    np.array([[1.5e-12, np.nan], [np.inf, -0.1]]),
+    np.array([0.1, 3.0, np.nan], dtype=np.float32),
+    np.arange(24, dtype=np.int64).reshape(2, 3, 4) - 2 ** 60,
+    np.array([True, False]),
+])
+def test_numeric_export_matches_the_csv_module(tmp_path, monkeypatch, block, sep, data):
+    """The joined fast path (any separator a number cannot contain) writes the
+    same layout as the csv module path ("e" forces the latter), and both
+    read back as exactly the stored values."""
+    import lib.h5engine as mod
+    monkeypatch.setattr(mod, "_BLOCK_ELEMENTS", block)
+    p = tmp_path / "n.h5"
     with h5py.File(p, "w") as f:
-        f["a"] = arr
-        n = min(n, arr.size)
-        got = H5Engine._read_flat_prefix(f["a"], n)
-    np.testing.assert_array_equal(got, arr.reshape(-1)[:n])
-
-
-def math_prod(shape):
-    out = 1
-    for s in shape:
-        out *= s
-    return out
+        f["d"] = data
+    e = H5Engine({"export": {"csv_separator": sep, "csv_line_ending": "\r\n"}})
+    e.open(str(p))
+    out = tmp_path / "n.csv"
+    assert e.export_csv("/d", str(out))["ok"]
+    e.close()
+    raw = out.read_bytes().decode()
+    assert raw.endswith("\r\n") and "\r\n\r\n" not in raw
+    rows = list(csv.reader(raw.splitlines(), delimiter=sep))
+    if data.ndim == 2:
+        cells = [r for r in rows[1:]]
+    else:
+        assert rows[0][-1] == "value"
+        idx = np.array([[int(x) for x in r[:-1]] for r in rows[1:]])
+        assert idx.tolist() == np.indices(data.shape).reshape(data.ndim, -1).T.tolist()
+        cells = [r[-1] for r in rows[1:]]
+    back = np.array(cells, dtype=str).reshape(data.shape)
+    if data.dtype.kind == "b":
+        assert (back == np.where(data, "True", "False")).all()
+    else:
+        # via float64: numpy warns when it casts the text "nan" straight to float32
+        wide = np.float64 if data.dtype.kind == "f" else data.dtype
+        np.testing.assert_array_equal(back.astype(wide).astype(data.dtype), data)
+    if data.dtype == np.float32:
+        assert cells[0] == "0.1"           # float32 shortest repr, not 0.10000000149011612

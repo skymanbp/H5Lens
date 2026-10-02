@@ -1,0 +1,52 @@
+name: Release
+
+# Push a v* tag on a commit whose CI is green. The exe published with the
+# release is the one built and self-tested here, never a local build.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Tag, version and changelog agree
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = (Select-String -Path lib/__init__.py -Pattern '__version__ = "([\d.]+)"').Matches[0].Groups[1].Value
+          if ($tag -ne "v$ver") { throw "tag $tag does not match lib/__init__.py version $ver" }
+          $text = Get-Content CHANGELOG.md -Raw
+          $m = [regex]::Match($text, "(?ms)^## \[$([regex]::Escape($ver))\] — (\d{4}-\d{2}-\d{2})\s*\n(.*?)(?=^## \[|\z)")
+          if (-not $m.Success) { throw "CHANGELOG has no dated section for $ver" }
+          Set-Content -Path notes.md -Value $m.Groups[2].Value.Trim() -Encoding utf8
+      - run: python -m pip install -r requirements.txt pytest pyinstaller==6.22.2
+      - run: python -m pytest tests -W error
+      - run: python build.py
+      - name: Self-test the exe (no window)
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\H5Lens.exe -ArgumentList '--self-test', 'self-test.json' -Wait -PassThru
+          Get-Content self-test.json
+          if ($p.ExitCode -ne 0) { throw "self-test exit code $($p.ExitCode)" }
+      - name: Checksums and notes
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist\H5Lens.exe -Algorithm SHA256).Hash.ToLower()
+          Set-Content -Path dist\SHA256SUMS.txt -Value "$h  H5Lens.exe" -Encoding ascii
+          $py = python -c "import sys; print(sys.version.split()[0])"
+          Add-Content -Path notes.md -Value "`n---`n`nH5Lens.exe: single-file PyInstaller 6.22.2 build, Windows x64, Python $py, built and self-tested by this workflow.`nSHA-256: $h" -Encoding utf8
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $ver = "${{ github.ref_name }}".TrimStart('v')
+          gh release create "${{ github.ref_name }}" dist\H5Lens.exe dist\SHA256SUMS.txt --title "H5Lens-Version-$ver" --notes-file notes.md

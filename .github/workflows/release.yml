@@ -13,8 +13,8 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Tag, version and changelog agree
@@ -23,7 +23,8 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $ver = (Select-String -Path lib/__init__.py -Pattern '__version__ = "([\d.]+)"').Matches[0].Groups[1].Value
           if ($tag -ne "v$ver") { throw "tag $tag does not match lib/__init__.py version $ver" }
-          $text = Get-Content CHANGELOG.md -Raw
+          $text = Get-Content CHANGELOG.md -Raw -Encoding utf8
+          # — is the em dash of "## [1.2.3] — date"; kept ASCII so the script's own encoding cannot matter
           $m = [regex]::Match($text, "(?ms)^## \[$([regex]::Escape($ver))\] — (\d{4}-\d{2}-\d{2})\s*\n(.*?)(?=^## \[|\z)")
           if (-not $m.Success) { throw "CHANGELOG has no dated section for $ver" }
           Set-Content -Path notes.md -Value $m.Groups[2].Value.Trim() -Encoding utf8

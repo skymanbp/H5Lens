@@ -15,6 +15,7 @@ H5Lens/
 │   ├── app.py         ← pywebview ↔ frontend bridge
 │   ├── h5engine.py    ← HDF5 reading engine (h5py + numpy)
 │   └── viewer.html    ← Frontend GUI
+├── tests/             ← Engine tests (pytest, no GUI needed)
 ├── LICENSE
 └── README.md
 ```
@@ -61,7 +62,10 @@ pip install -r requirements.txt
 ```bash
 python launch.py                # Opens the welcome screen (click it or Ctrl+O to browse)
 python launch.py mydata.h5      # Opens a specific file directly
+python launch.py --debug        # Enables the webview developer tools
 ```
+
+You can also drag a file onto the window to open it.
 
 ---
 
@@ -69,17 +73,21 @@ python launch.py mydata.h5      # Opens a specific file directly
 
 | Feature | Description |
 |---|---|
-| **Tree Explorer** | Hierarchical view of all groups and datasets with search/filter |
-| **Data Table** | Tabular preview of 1D, 2D, and N-D datasets with row indices |
+| **Tree Explorer** | Hierarchical view of all groups and datasets with filter (by name, or by path when the filter contains `/`) and keyboard navigation; hard links that point back to an already shown group (including cycles) appear as link nodes; unreadable objects (e.g. dangling soft links) are shown in red with the reason |
+| **Data Table** | Preview of the first rows of 1D and 2D datasets, and the first elements of N-D datasets with their position; only the previewed part is read from disk; cells are selectable for copying |
 | **Attributes** | View HDF5 attributes on any group or dataset |
-| **Dataset Details** | dtype, shape, compression, chunks, fill value, max shape |
-| **Statistics** | Min, max, mean, std, median, NaN count (also counts ±Inf), unique values (only under 1M finite values) |
-| **Image Preview** | Auto-renders 2D/3D numeric arrays as images (grayscale/RGB/RGBA) |
-| **CSV Export** | Export any dataset to CSV via native save dialog |
-| **Recent Files** | Remembers last 10 opened files |
-| **Keyboard Shortcuts** | `Ctrl+O` open, `/` search, `Ctrl+E` export, `Esc` clear |
-| **Resizable Sidebar** | Drag to resize the tree panel |
-| **Native Window** | Proper desktop app via pywebview (no browser chrome) |
+| **Dataset Details** | dtype (string, compound, enum and vlen types shown readably), shape, raw and on-disk size, compression, chunks, shuffle, fletcher32, scale-offset, fill value, max shape |
+| **Statistics** | Min, max, mean, std, NaN and ±Inf counts, computed block by block so large datasets need not fit in memory; median (up to 20M values) and unique count (under 1M finite values) |
+| **Image Preview** | Renders 2D and H×W×1/3/4 arrays as grayscale/RGB/RGBA; `uint8` data is shown as is, other types are scaled linearly from min to max (NaN/Inf drawn black); click to toggle fit / actual size |
+| **CSV Export** | Export any dataset to CSV at full precision via the native save dialog, streamed in blocks |
+| **Recent Files** | Remembers recently opened files, marks ones that no longer exist, single entries can be removed |
+| **Drag and Drop** | Drop a file onto the window to open it |
+| **Keyboard Shortcuts** | `Ctrl+O` open, `Ctrl+W` close, `/` or `Ctrl+F` filter, `↑ ↓ ← → Home End Enter` navigate the tree, `Ctrl+E` export, `Ctrl+I` statistics, `Esc` clear filter |
+| **Resizable Sidebar** | Drag to resize the tree panel; the width is remembered |
+| **Native Window** | Proper desktop app via pywebview (no browser chrome); the title shows the open file |
+
+Files are opened read-only and without HDF5 file locking (where h5py
+supports it), so a file that another program is writing can still be viewed.
 
 ---
 
@@ -115,24 +123,31 @@ Edit `config.json` to customize:
     "max_preview_rows": 5000,  // Max rows shown in data table
     "max_preview_cols": 200,   // Max columns shown for 2D data
     "max_image_pixels": 4000000, // Max rows × cols the backend will render
-    "float_precision": 8,      // Decimal places for floats in the data table
-    "sidebar_width": 300       // Unused
+    "float_precision": 8,      // Significant digits for floats on screen (1-17)
+    "sidebar_width": 300       // Initial tree panel width in px (until you drag it)
   },
   "export": {
     "csv_separator": ",",      // CSV delimiter
-    "csv_line_ending": "\n",   // Unused
-    "default_format": "csv"    // Unused
+    "csv_line_ending": "\n",   // CSV line ending, e.g. "\r\n" for Excel on Windows
+    "default_format": "csv"    // Reserved: CSV is the only export format
   },
   "recent_files": [],          // Recent-file list, rewritten by the app
   "max_recent_files": 10       // How many recent files to keep
 }
 ```
 
-The Image tab is offered by the frontend only when a dataset has at most
-4,000,000 elements in total; that threshold is fixed and is not affected by
-`max_image_pixels`, which limits the backend renderer alone. `float_precision`
-applies to the data table only: statistics are shown at 8 significant digits and
-CSV export always rounds to 8 decimal places.
+The Image tab is offered when a dataset's height × width is at most
+`max_image_pixels`. `float_precision` applies to everything shown on screen
+(table, attributes, statistics); CSV export always writes full precision.
+
+---
+
+## Tests
+
+```bash
+pip install pytest
+python -m pytest tests
+```
 
 ---
 

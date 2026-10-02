@@ -115,7 +115,8 @@
 
   /* ── Main ── */
   main {
-    display: grid; grid-template-columns: 280px 1fr;
+    --sbw: 280px;
+    display: grid; grid-template-columns: var(--sbw) 1fr;
     overflow: hidden; position: relative;
   }
   main.empty { grid-template-columns: 1fr; }
@@ -187,6 +188,13 @@
   .tnode .ico.grp { color: var(--amber); }
   .tnode .ico.ds  { color: var(--cyan); }
   .tnode .ico.rt  { color: var(--accent); }
+  .tnode .ico.lnk { color: var(--purple); }
+  .tnode .ico.err { color: var(--red); }
+  .tnode.err .lbl { color: var(--red); }
+  .tnode.link .lbl { font-style: italic; color: var(--tx-2); }
+  .tree:focus { outline: none; }
+  .tree:focus .tnode.sel { box-shadow: inset 2px 0 0 var(--accent); }
+  .tree-empty { padding: 16px; color: var(--tx-3); font-size: 12px; text-align: center; }
 
   .tnode .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tnode .meta {
@@ -241,6 +249,10 @@
 
   /* ── Data Table ── */
   .tbl-wrap { overflow: auto; flex: 1; }
+  .dtbl td, .attr-v, .scalar-val, .stat-value, .err-box { user-select: text; cursor: text; }
+  .dtbl td.nan { color: var(--tx-3); }
+  .dtbl tbody tr.clk { cursor: pointer; }
+  .dtbl tbody tr.clk td { cursor: pointer; user-select: none; }
   .tbl-notice {
     padding: 6px 14px; background: var(--amber-soft); color: var(--amber);
     font-family: var(--mono); font-size: 11px; text-align: center; flex-shrink: 0;
@@ -305,15 +317,28 @@
     border-radius: var(--radius); padding: 14px 16px;
   }
   .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--tx-3); margin-bottom: 6px; }
-  .stat-value { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--tx-1); }
+  .stat-value { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--tx-1); word-break: break-all; }
+  .stat-value.dim { color: var(--tx-3); font-size: 14px; font-weight: 500; }
 
   /* image preview */
-  .img-box { display: flex; align-items: center; justify-content: center; height: 100%; padding: 16px; overflow: auto; }
+  .img-box { flex: 1; min-height: 0; display: flex; padding: 16px; overflow: auto; }
   .img-box img {
-    max-width: 100%; max-height: 100%; image-rendering: pixelated;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    width: 100%; height: 100%; object-fit: contain;
+    image-rendering: pixelated; cursor: zoom-in;
   }
+  .img-box.actual img { width: auto; height: auto; flex-shrink: 0; cursor: zoom-out; }
+
+  .img-note {
+    padding: 6px 14px; font-family: var(--mono); font-size: 11px; color: var(--tx-3);
+    border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+  }
+  .err-box {
+    margin: 24px; padding: 14px 16px; border: 1px solid rgba(239,107,107,0.35);
+    background: rgba(239,107,107,0.08); color: var(--red); border-radius: var(--radius);
+    font-family: var(--mono); font-size: 12px; word-break: break-word;
+  }
+  .chip.click { cursor: pointer; }
+  .chip.click:hover { filter: brightness(1.25); }
 
   /* empty */
   .empty-msg {
@@ -334,7 +359,7 @@
     display: flex; flex-direction: column; align-items: center;
     gap: 18px; cursor: pointer; transition: all 0.25s ease;
   }
-  .drop-zone:hover {
+  .drop-zone:hover, .drop-zone.drag {
     border-color: var(--accent); background: var(--accent-soft);
     box-shadow: 0 0 36px rgba(91,158,245,0.06);
   }
@@ -356,10 +381,13 @@
   .recent-list {
     width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 2px;
   }
+  .recent-head { display: flex; align-items: baseline; margin-bottom: 6px; }
   .recent-title {
-    font-size: 10px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.8px; color: var(--tx-3); margin-bottom: 6px;
+    flex: 1; font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--tx-3);
   }
+  .recent-clear { font-size: 11px; color: var(--tx-3); cursor: pointer; }
+  .recent-clear:hover { color: var(--accent); }
   .recent-item {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 12px; border-radius: var(--radius);
@@ -368,10 +396,17 @@
   }
   .recent-item:hover { background: var(--bg-hover); color: var(--tx-1); }
   .recent-item svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--tx-3); }
+  .recent-item .nm { flex-shrink: 0; }
+  .recent-item .dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tx-3); font-size: 10.5px; direction: rtl; text-align: left; }
+  .recent-item.missing { opacity: 0.45; }
+  .recent-item .x { opacity: 0; padding: 0 4px; color: var(--tx-3); font-size: 14px; line-height: 1; }
+  .recent-item:hover .x { opacity: 1; }
+  .recent-item .x:hover { color: var(--red); }
+  .welcome-foot { font-family: var(--mono); font-size: 10.5px; color: var(--tx-3); }
 
   /* ── Resize Handle ── */
   .resize-handle {
-    position: absolute; left: 279px; top: 0; width: 3px; height: 100%;
+    position: absolute; left: calc(var(--sbw) - 2px); top: 0; width: 4px; height: 100%;
     cursor: col-resize; z-index: 50; background: transparent;
     transition: background var(--dur);
   }
@@ -411,6 +446,7 @@
     transition: all 0.25s ease; pointer-events: none;
   }
   .toast-msg.show { opacity: 1; transform: translateY(0); }
+  .toast-msg.err { border-color: rgba(239,107,107,0.5); color: var(--red); }
 
   /* ── Animations ── */
   @keyframes fadeUp { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
@@ -429,17 +465,20 @@
     <div class="sep"></div>
     <div id="breadcrumb"></div>
     <div class="hdr-actions">
-      <button class="btn btn-primary" id="btnOpen">
+      <button class="btn btn-primary" id="btnOpen" title="Open file (Ctrl+O)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l2 2h4a2 2 0 0 1 2 2v1"/><path d="M21 15l-3.5-7H7.5L4 15h17z"/></svg>
         Open
       </button>
-      <button class="btn" id="btnExport" disabled>
+      <button class="btn" id="btnExport" disabled title="Export dataset as CSV (Ctrl+E)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export
       </button>
-      <button class="btn" id="btnStats" disabled title="Compute statistics">
+      <button class="btn" id="btnStats" disabled title="Compute statistics (Ctrl+I)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
         Stats
+      </button>
+      <button class="btn btn-icon" id="btnClose" disabled title="Close file (Ctrl+W)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
   </header>
@@ -458,7 +497,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" placeholder="Filter…" spellcheck="false" />
       </div>
-      <div class="tree" id="tree"></div>
+      <div class="tree" id="tree" tabindex="0"></div>
     </aside>
 
     <!-- Content -->
@@ -476,10 +515,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </div>
         <div class="drop-title">Open an HDF5 file</div>
-        <div class="drop-sub">Click to browse</div>
+        <div class="drop-sub">Click to browse, or drop a file here</div>
         <div class="drop-fmts"><span>.h5</span><span>.hdf5</span><span>.hdf</span><span>.he5</span><span>.nc</span></div>
       </div>
       <div class="recent-list" id="recentList"></div>
+      <div class="welcome-foot" id="welcomeFoot"></div>
     </div>
   </main>
 
@@ -487,200 +527,337 @@
   <div class="status">
     <span id="stLeft">No file loaded</span>
     <span class="fill"></span>
-    <span id="stRight">Ctrl+O Open · / Search · Ctrl+E Export</span>
+    <span id="stRight">Ctrl+O Open · / Search · ↑↓←→ Navigate · Ctrl+E Export</span>
   </div>
 </div>
 
 <div class="toast-msg" id="toast"></div>
 
 <script>
-// ── Wait for pywebview bridge ──
-const api = () => window.pywebview ? window.pywebview.api : null;
+'use strict';
+// ═══════════════════ Bridge ═══════════════════
+// pywebview injects window.pywebview.api asynchronously; everything that talks
+// to Python awaits this promise, so calls made early (e.g. openFile() from the
+// command line) wait instead of being dropped.
+const apiReady = new Promise(resolve => {
+  let done = false;
+  const check = () => {
+    const a = window.pywebview && window.pywebview.api;
+    if (!done && a && typeof a.open_file === 'function') { done = true; resolve(a); }
+    return done;
+  };
+  if (check()) return;
+  window.addEventListener('pywebviewready', check);
+  const iv = setInterval(() => { if (check()) clearInterval(iv); }, 100);
+});
 
-// ── State ──
-let treeData = null;
-let currentPath = '/';
-let currentNode = null;
-let filterText = '';
+// ═══════════════════ State ═══════════════════
+const S = {
+  tree: null,              // root node from the backend
+  byPath: new Map(),       // path -> node
+  parent: new Map(),       // path -> parent path
+  expanded: new Set(['/']),
+  sel: null,               // selected node
+  view: null,              // { path, tabs } of the content currently shown
+  filter: '',
+  match: new Map(),        // filter match memo
+  busy: false,
+  token: 0,                // bumps on every selection; stale renders are dropped
+  lastOpenAt: 0,
+  cfg: { precision: 8, maxImagePx: 4000000 },
+};
 
-// ── Refs ──
+// ═══════════════════ Refs ═══════════════════
 const $ = id => document.getElementById(id);
 const mainEl = $('main');
 const treeEl = $('tree');
 const contentEl = $('content');
 const hintEl = $('hint');
-const welcomeEl = $('welcome');
+const searchEl = $('searchInput');
 
-// ── Toast ──
+// ═══════════════════ Utilities ═══════════════════
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ESC[c]); }
+function formatLabel(k) { return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function fmtShape(shape) { return !shape || shape.length === 0 ? 'scalar' : shape.join(' × '); }
+function fmtInt(n) { return typeof n === 'number' ? n.toLocaleString() : String(n); }
+function fmtBytes(b) {
+  if (!b) return '0 B';
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return i ? b.toFixed(1) + ' ' + u[i] : b + ' B';
+}
+function fmtFloat(v) { return String(parseFloat(v.toPrecision(S.cfg.precision))); }
+// Floats arrive at full precision; float_precision sets significant digits.
+function fmtVal(v) {
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : fmtFloat(v);
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  if (v === null || v === undefined) return '—';
+  if (Array.isArray(v)) return '[' + v.slice(0, 50).map(fmtVal).join(', ') + (v.length > 50 ? ', …' : '') + ']';
+  return String(v);
+}
+const NONFINITE = new Set(['NaN', 'Inf', '-Inf']);
+
 let toastT = null;
-function toast(msg) {
+function toast(msg, isErr = false) {
   const el = $('toast');
   el.textContent = msg;
+  el.classList.toggle('err', isErr);
   el.classList.add('show');
   clearTimeout(toastT);
-  toastT = setTimeout(() => el.classList.remove('show'), 2400);
+  toastT = setTimeout(() => el.classList.remove('show'), isErr ? 4500 : 2400);
 }
 
-// ── Loading ──
-function showLoad(msg='Loading…') {
-  let el = document.querySelector('.loading-mask');
-  if (!el) {
-    el = document.createElement('div');
-    el.className = 'loading-mask';
-    el.innerHTML = `<div class="spinner"><div class="spin-ring"></div><div class="spin-text">${msg}</div></div>`;
-    document.body.appendChild(el);
-  } else {
+// The mask appears only if work takes longer than a moment, to avoid flicker.
+let loadT = null;
+function showLoad(msg = 'Loading…') {
+  clearTimeout(loadT);
+  loadT = setTimeout(() => {
+    let el = document.querySelector('.loading-mask');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'loading-mask';
+      el.innerHTML = '<div class="spinner"><div class="spin-ring"></div><div class="spin-text"></div></div>';
+      document.body.appendChild(el);
+    }
     el.querySelector('.spin-text').textContent = msg;
     el.style.display = '';
-  }
+  }, 150);
 }
 function hideLoad() {
+  clearTimeout(loadT);
   const el = document.querySelector('.loading-mask');
   if (el) el.style.display = 'none';
 }
 
-// ── Open file ──
-async function openFile(filepath) {
-  const a = api();
-  if (!a) return;
-  showLoad('Opening file…');
+async function copyText(text) {
   try {
-    let res;
-    if (filepath) {
-      res = await a.open_file(filepath);
-    } else {
-      res = await a.open_file_dialog();
-    }
+    await navigator.clipboard.writeText(text);
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  toast('Copied ' + text);
+}
+
+// ═══════════════════ Open / Close ═══════════════════
+async function openFile(filepath) {
+  if (S.busy) return;
+  S.busy = true;
+  S.lastOpenAt = Date.now();
+  try {
+    const a = await apiReady;
+    showLoad('Opening file…');
+    const res = filepath ? await a.open_file(filepath) : await a.open_file_dialog();
     if (!res.ok) {
-      hideLoad();
-      if (res.error !== 'cancelled') toast('Error: ' + res.error);
+      if (res.error !== 'cancelled') toast('Error: ' + res.error, true);
+      if (filepath) loadRecent();
       return;
     }
-    treeData = res.tree;
-    renderTree(treeData);
+    loadTree(res.tree);
     mainEl.classList.remove('empty');
-    hintEl.style.display = '';
-    clearContent();
-
-    $('nodeCount').textContent = countNodes(treeData);
-    $('stLeft').textContent = res.filename + ' · ' + res.size_fmt;
-    updateBreadcrumb('/');
+    $('btnClose').disabled = false;
+    $('stLeft').textContent = res.filename + ' · ' + res.size_fmt + ' · ' + fmtInt(S.byPath.size) + ' nodes';
+    $('stLeft').title = res.filepath;
+    selectNode(S.tree);
     toast('Opened ' + res.filename);
-  } catch(e) {
-    toast('Error: ' + e);
+  } catch (e) {
+    toast('Error: ' + e, true);
+  } finally {
+    hideLoad();
+    S.busy = false;
   }
-  hideLoad();
 }
 
-// ── Tree ──
-function countNodes(n) { return 1 + (n.children||[]).reduce((s,c)=>s+countNodes(c),0); }
-
-function renderTree(root) {
+async function closeFile() {
+  const a = await apiReady;
+  try { await a.close_file(); } catch (_) {}
+  S.token++;                               // drop renders still in flight
+  S.tree = null; S.sel = null; S.view = null;
+  S.byPath.clear(); S.parent.clear();
   treeEl.innerHTML = '';
-  buildNode(root, 0, treeEl, true);
+  clearContent();
+  mainEl.classList.add('empty');
+  $('breadcrumb').innerHTML = '';
+  $('stLeft').textContent = 'No file loaded';
+  $('stLeft').title = '';
+  ['btnClose', 'btnExport', 'btnStats'].forEach(id => $(id).disabled = true);
+  setFilter('');
+  loadRecent();
 }
 
-function nodeMatch(n, f) {
-  if (n.name.toLowerCase().includes(f)) return true;
-  return (n.children||[]).some(c => nodeMatch(c, f));
+// ═══════════════════ Tree ═══════════════════
+function loadTree(root) {
+  S.tree = root;
+  S.byPath.clear(); S.parent.clear();
+  const index = (n, parentPath) => {
+    S.byPath.set(n.path, n);
+    if (parentPath !== null) S.parent.set(n.path, parentPath);
+    for (const c of n.children || []) index(c, n.path);
+  };
+  index(root, null);
+  S.expanded = new Set(['/']);
+  S.sel = null;
+  $('nodeCount').textContent = fmtInt(S.byPath.size);
+  setFilter('');
 }
 
-function buildNode(node, depth, parent, expanded) {
-  if (filterText && !nodeMatch(node, filterText.toLowerCase())) return;
+function matches(node, f) {
+  let m = S.match.get(node.path);
+  if (m === undefined) {
+    const hay = f.includes('/') ? node.path.toLowerCase() : node.name.toLowerCase();
+    m = hay.includes(f) || (node.children || []).some(c => matches(c, f));
+    S.match.set(node.path, m);
+  }
+  return m;
+}
 
-  const isGrp = node.type === 'group';
-  const hasKids = isGrp && node.children && node.children.length > 0;
+const ICONS = {
+  root: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+  group: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+  dataset: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  link: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+  error: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  chev: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>',
+};
 
+function hasKids(n) { return n.type === 'group' && n.children && n.children.length > 0; }
+function isOpen(n) { return hasKids(n) && (S.filter ? true : S.expanded.has(n.path)); }
+
+// Only visible rows are built, so huge files stay responsive; the list is
+// flat, which also makes keyboard navigation a matter of row order.
+function renderTree() {
+  treeEl.innerHTML = '';
+  if (!S.tree) return;
+  const f = S.filter.toLowerCase();
+  const frag = document.createDocumentFragment();
+  let shown = 0;
+  const walk = (node, depth) => {
+    if (f && !matches(node, f)) return;
+    frag.appendChild(makeRow(node, depth));
+    shown++;
+    if (isOpen(node)) for (const c of node.children) walk(c, depth + 1);
+  };
+  walk(S.tree, 0);
+  if (shown === 0) treeEl.innerHTML = '<div class="tree-empty">No matches</div>';
+  else treeEl.appendChild(frag);
+}
+
+function makeRow(node, depth) {
   const el = document.createElement('div');
-  el.className = 'tnode' + (currentPath === node.path ? ' sel' : '');
+  const kids = hasKids(node);
+  el.className = 'tnode' + (S.sel && S.sel.path === node.path ? ' sel' : '')
+    + (node.type === 'error' ? ' err' : '') + (node.type === 'link' ? ' link' : '');
   el.style.setProperty('--d', depth);
   el.dataset.path = node.path;
 
-  // Chevron
-  const chev = document.createElement('span');
-  chev.className = 'chev' + (!hasKids ? ' hide' : '') + (expanded ? ' open' : '');
-  chev.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>';
-  el.appendChild(chev);
+  let ico, icoCls;
+  if (node.path === '/') { ico = ICONS.root; icoCls = 'rt'; }
+  else if (node.type === 'group') { ico = ICONS.group; icoCls = 'grp'; }
+  else if (node.type === 'dataset') { ico = ICONS.dataset; icoCls = 'ds'; }
+  else if (node.type === 'link') { ico = ICONS.link; icoCls = 'lnk'; }
+  else { ico = ICONS.error; icoCls = 'err'; }
 
-  // Icon
-  const ico = document.createElement('span');
-  if (node.path === '/') {
-    ico.className = 'ico rt';
-    ico.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>';
-  } else if (isGrp) {
-    ico.className = 'ico grp';
-    ico.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
-  } else {
-    ico.className = 'ico ds';
-    ico.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
-  }
-  el.appendChild(ico);
+  let meta = '';
+  if (node.type === 'dataset') meta = node.null ? 'null' : fmtShape(node.shape);
+  else if (kids) meta = String(node.children.length);
 
-  // Label
-  const lbl = document.createElement('span');
-  lbl.className = 'lbl';
-  lbl.textContent = node.path === '/' ? 'Root' : node.name;
-  lbl.title = node.path;
-  el.appendChild(lbl);
-
-  // Badge
-  if (node.type === 'dataset' && node.shape) {
-    const meta = document.createElement('span');
-    meta.className = 'meta';
-    meta.textContent = node.shape.length === 0 ? 'scalar' : node.shape.join('×');
-    el.appendChild(meta);
-  }
-  if (isGrp && node.children && node.children.length > 0) {
-    const meta = document.createElement('span');
-    meta.className = 'meta';
-    meta.textContent = node.children.length;
-    el.appendChild(meta);
-  }
-
-  parent.appendChild(el);
-
-  // Children
-  let kidBox = null;
-  if (hasKids) {
-    kidBox = document.createElement('div');
-    kidBox.style.display = expanded ? '' : 'none';
-    parent.appendChild(kidBox);
-    for (const c of node.children) buildNode(c, depth + 1, kidBox, !!filterText);
-  }
-
-  el.addEventListener('click', e => {
-    e.stopPropagation();
-    selectNode(node);
-    if (hasKids && kidBox) {
-      const open = kidBox.style.display !== 'none';
-      kidBox.style.display = open ? 'none' : '';
-      chev.classList.toggle('open', !open);
-    }
-  });
+  const title = node.type === 'link' ? `${node.path} → ${node.target}`
+    : node.type === 'error' ? `${node.path}\n${node.error}` : node.path;
+  el.innerHTML =
+    `<span class="chev${kids ? '' : ' hide'}${isOpen(node) ? ' open' : ''}">${ICONS.chev}</span>` +
+    `<span class="ico ${icoCls}">${ico}</span>` +
+    `<span class="lbl" title="${esc(title)}">${esc(node.path === '/' ? 'Root' : node.name)}</span>` +
+    (meta ? `<span class="meta">${esc(meta)}</span>` : '');
+  return el;
 }
 
-// ── Selection ──
-async function selectNode(node) {
-  currentPath = node.path;
-  currentNode = node;
+function setExpanded(path, open) {
+  if (S.filter) return;              // filtering shows every match expanded
+  if (open) S.expanded.add(path); else S.expanded.delete(path);
+  renderTree();
+}
 
+function reveal(path) {
+  let p = S.parent.get(path);
+  while (p !== undefined) { S.expanded.add(p); p = S.parent.get(p); }
+}
+
+function rowFor(path) { return treeEl.querySelector(`.tnode[data-path="${CSS.escape(path)}"]`); }
+
+function markSelected() {
   treeEl.querySelectorAll('.tnode.sel').forEach(e => e.classList.remove('sel'));
-  const t = treeEl.querySelector(`[data-path="${CSS.escape(node.path)}"]`);
-  if (t) t.classList.add('sel');
+  if (!S.sel) return;
+  const row = rowFor(S.sel.path);
+  if (row) { row.classList.add('sel'); row.scrollIntoView({ block: 'nearest' }); }
+}
 
+treeEl.addEventListener('click', e => {
+  const row = e.target.closest('.tnode');
+  if (!row) return;
+  const node = S.byPath.get(row.dataset.path);
+  if (!node) return;
+  const onChev = !!e.target.closest('.chev');
+  const wasSel = S.sel && S.sel.path === node.path;
+  if (hasKids(node) && (onChev || wasSel)) setExpanded(node.path, !isOpen(node));
+  else if (hasKids(node) && !isOpen(node)) setExpanded(node.path, true);
+  if (!onChev) selectNode(node, { follow: true });
+});
+
+function setFilter(text) {
+  S.filter = text;
+  S.match.clear();
+  if (searchEl.value !== text) searchEl.value = text;
+  if (!text && S.sel) reveal(S.sel.path);   // keep the selection visible
+  renderTree();
+  markSelected();
+}
+
+let filterT = null;
+searchEl.addEventListener('input', () => {
+  clearTimeout(filterT);
+  filterT = setTimeout(() => setFilter(searchEl.value.trim()), 120);
+});
+
+// ═══════════════════ Selection ═══════════════════
+let renderT = null;
+function selectNode(node, opts = {}) {
+  if (!node) return;
+  if (node.type === 'link' && opts.follow) {
+    const target = S.byPath.get(node.target);
+    if (target) return selectNode(target, { reveal: true });
+  }
+  const changed = !S.sel || S.sel.path !== node.path;
+  S.sel = node;
+  if (opts.reveal) { reveal(node.path); renderTree(); }
+  markSelected();
   updateBreadcrumb(node.path);
-
   $('btnExport').disabled = node.type !== 'dataset';
   $('btnStats').disabled = node.type !== 'dataset';
+  if (!changed && S.view && S.view.path === node.path) return;
 
-  if (node.type === 'group') {
-    await renderGroup(node);
-  } else if (node.type === 'dataset') {
-    await renderDataset(node);
+  const token = ++S.token;
+  clearTimeout(renderT);
+  // Keyboard navigation defers loading so holding an arrow key stays smooth.
+  renderT = setTimeout(() => renderNode(node, token), opts.defer ? 140 : 0);
+}
+
+async function renderNode(node, token) {
+  try {
+    if (node.type === 'group') await renderGroup(node, token);
+    else if (node.type === 'dataset') await renderDataset(node, token);
+    else renderProblem(node, token);
+  } catch (e) {
+    if (token === S.token) toast('Error: ' + e, true);
   }
 }
 
-// ── Breadcrumb ──
 function updateBreadcrumb(path) {
   const bc = $('breadcrumb');
   bc.innerHTML = '';
@@ -696,401 +873,458 @@ function updateBreadcrumb(path) {
     c.className = 'crumb' + (i === parts.length - 1 ? ' active' : '');
     c.textContent = i === 0 ? 'Root' : p;
     const tp = i === 0 ? '/' : '/' + parts.slice(1, i + 1).join('/');
-    c.addEventListener('click', () => {
-      const n = findNode(treeData, tp);
-      if (n) selectNode(n);
-    });
+    c.addEventListener('click', () => selectNode(S.byPath.get(tp), { reveal: true }));
     bc.appendChild(c);
   });
+  bc.title = path;
 }
 
-function findNode(n, path) {
-  if (n.path === path) return n;
-  for (const c of (n.children || [])) { const f = findNode(c, path); if (f) return f; }
-  return null;
-}
-
-// ── Clear content ──
+// ═══════════════════ Content ═══════════════════
 function clearContent() {
   Array.from(contentEl.children).forEach(c => { if (c.id !== 'hint') c.remove(); });
   hintEl.style.display = '';
 }
 
-// ── Render Group ──
-async function renderGroup(node) {
-  hintEl.style.display = 'none';
-  clearContent();
-  const a = api(); if (!a) return;
-
+function newView() {
   const wrap = document.createElement('div');
   wrap.className = 'fade-up';
-  wrap.style.cssText = 'height:100%;display:flex;flex-direction:column;';
+  wrap.style.cssText = 'height:100%;display:flex;flex-direction:column;min-height:0;';
+  return wrap;
+}
 
-  // Info bar
+function mountView(node, wrap, tabs, token) {
+  if (token !== S.token) return false;  // the user has moved on
+  hintEl.style.display = 'none';
+  clearContent();
+  hintEl.style.display = 'none';
+  contentEl.appendChild(wrap);
+  S.view = { path: node.path, tabs };
+  return true;
+}
+
+function infoBar(chips, path) {
   const info = document.createElement('div');
   info.className = 'info-bar';
-  info.innerHTML = `<span class="chip tp">Group</span><span class="chip sh">${node.children.length} children</span><span class="chip at">${node.attr_count||0} attrs</span>`;
-  wrap.appendChild(info);
+  info.innerHTML = chips.filter(Boolean).join('') +
+    '<span class="info-sep"></span><span class="chip click at" title="Copy path to clipboard">Copy path</span>';
+  info.lastElementChild.addEventListener('click', () => copyText(path));
+  return info;
+}
 
-  // Tabs
-  const tabsEl = document.createElement('div');
-  tabsEl.className = 'tabs';
-  const tChildren = mkTab('Children', true);
-  const tAttrs = mkTab('Attributes', false);
-  tabsEl.append(tChildren.el, tAttrs.el);
-  wrap.appendChild(tabsEl);
+// Tab strip whose panes live in `wrap`; panes with onShow load lazily.
+function makeTabs(wrap) {
+  const bar = document.createElement('div');
+  bar.className = 'tabs';
+  wrap.appendChild(bar);
+  const list = [];
+  const tabs = {
+    add(label, pane, onShow) {
+      const el = document.createElement('div');
+      el.className = 'tab';
+      el.textContent = label;
+      el.addEventListener('click', () => tabs.show(label));
+      bar.appendChild(el);
+      pane.classList.add('pane');
+      wrap.appendChild(pane);
+      list.push({ label, el, pane, onShow, loaded: false });
+      if (list.length === 1) tabs.show(label);
+      return pane;
+    },
+    get(label) { const t = list.find(t => t.label === label); return t ? t.pane : null; },
+    show(label) {
+      for (const t of list) {
+        const on = t.label === label;
+        t.el.classList.toggle('on', on);
+        t.pane.classList.toggle('on', on);
+        if (on && t.onShow && !t.loaded) { t.loaded = true; t.onShow(t.pane); }
+      }
+    },
+  };
+  return tabs;
+}
 
-  // Children pane
+function div(cls, html) {
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  if (html !== undefined) d.innerHTML = html;
+  return d;
+}
+
+function errBox(msg) { return `<div class="err-box">${esc(msg)}</div>`; }
+
+function renderAttrs(res) {
+  if (!res || !res.ok) return div('', errBox((res && res.error) || 'Could not read attributes'));
+  const keys = Object.keys(res.attrs || {});
+  if (keys.length === 0) return div('attrs-grid', '<div class="empty-msg" style="height:auto;padding:32px">No attributes</div>');
+  let h = '';
+  for (const k of keys) {
+    h += `<div class="attr-row"><span class="attr-k" title="${esc(k)}">${esc(k)}</span><span class="attr-v">${esc(fmtVal(res.attrs[k]))}</span></div>`;
+  }
+  return div('attrs-grid', h);
+}
+
+function cellHtml(v) {
+  const t = fmtVal(v);
+  const cls = typeof v === 'string' && NONFINITE.has(v) ? ' class="nan"' : '';
+  const title = t.length > 32 ? ` title="${esc(t.length > 2000 ? t.slice(0, 2000) + '…' : t)}"` : '';
+  return `<td${cls}${title}>${esc(t)}</td>`;
+}
+
+// One innerHTML assignment is far faster than building rows node by node.
+function tableHtml(headers, rows) {
+  const out = ['<table class="dtbl"><thead><tr>'];
+  headers.forEach((h, i) => out.push(i === 0 ? `<th class="ri">${esc(h)}</th>` : `<th>${esc(h)}</th>`));
+  out.push('</tr></thead><tbody>');
+  for (const r of rows) {
+    out.push(`<tr><td class="ri">${esc(r[0])}</td>`);
+    for (let i = 1; i < r.length; i++) out.push(cellHtml(r[i]));
+    out.push('</tr>');
+  }
+  out.push('</tbody></table>');
+  return out.join('');
+}
+
+// ── Group ──
+async function renderGroup(node, token) {
+  const a = await apiReady;
+  const attrRes = await a.get_attrs(node.path);
+  const wrap = newView();
+  wrap.appendChild(infoBar([
+    '<span class="chip tp">Group</span>',
+    `<span class="chip sh">${fmtInt(node.children.length)} children</span>`,
+    `<span class="chip at">${node.attr_count || 0} attrs</span>`,
+  ], node.path));
+  const tabs = makeTabs(wrap);
+
   const pChildren = document.createElement('div');
-  pChildren.className = 'pane on';
-  if (node.children.length === 0) {
+  if (node.error) {
+    pChildren.innerHTML = errBox('Could not list members: ' + node.error);
+  } else if (node.children.length === 0) {
     pChildren.innerHTML = '<div class="empty-msg">Empty group</div>';
   } else {
-    const tw = document.createElement('div');
-    tw.className = 'tbl-wrap';
-    const tbl = document.createElement('table');
-    tbl.className = 'dtbl';
-    tbl.innerHTML = '<thead><tr><th>Name</th><th>Type</th><th>Shape</th><th>Dtype</th><th>Compression</th></tr></thead>';
-    const tb = document.createElement('tbody');
-    for (const c of node.children) {
-      const tr = document.createElement('tr');
-      tr.style.cursor = 'pointer';
-      tr.innerHTML = `
-        <td style="color:var(--accent)">${esc(c.name)}</td>
-        <td>${c.type==='group'?'<span style="color:var(--amber)">Group</span>':'<span style="color:var(--cyan)">Dataset</span>'}</td>
-        <td>${c.shape?(c.shape.length===0?'scalar':c.shape.join(' × ')):'—'}</td>
-        <td>${c.dtype||'—'}</td>
-        <td>${c.compression||'—'}</td>`;
-      tr.addEventListener('click', () => {
-        const n = findNode(treeData, c.path);
-        if (n) selectNode(n);
-      });
-      tb.appendChild(tr);
-    }
-    tbl.appendChild(tb);
-    tw.appendChild(tbl);
+    const rows = node.children.map(c => {
+      let type, shape = '—', dtype = '—', size = '—';
+      if (c.type === 'group') type = '<span style="color:var(--amber)">Group</span>';
+      else if (c.type === 'dataset') {
+        type = '<span style="color:var(--cyan)">Dataset</span>';
+        shape = esc(c.null ? 'null' : fmtShape(c.shape));
+        dtype = esc(c.dtype);
+        size = esc(fmtBytes(c.nbytes));
+      } else if (c.type === 'link') type = `<span style="color:var(--purple)">Link → ${esc(c.target)}</span>`;
+      else type = `<span style="color:var(--red)" title="${esc(c.error || c.kind || '')}">${c.type === 'error' ? 'Unreadable' : esc(c.kind || 'Other')}</span>`;
+      return `<tr class="clk" data-path="${esc(c.path)}"><td style="color:var(--accent)">${esc(c.name)}</td><td>${type}</td><td>${shape}</td><td>${dtype}</td><td>${size}</td><td>${esc(c.compression || '—')}</td></tr>`;
+    });
+    const tw = div('tbl-wrap', '<table class="dtbl"><thead><tr><th>Name</th><th>Type</th><th>Shape</th><th>Dtype</th><th>Size</th><th>Compression</th></tr></thead><tbody>' + rows.join('') + '</tbody></table>');
+    tw.addEventListener('click', e => {
+      const tr = e.target.closest('tr.clk');
+      if (tr) selectNode(S.byPath.get(tr.dataset.path), { reveal: true, follow: true });
+    });
     pChildren.appendChild(tw);
   }
-  wrap.appendChild(pChildren);
-
-  // Attrs pane
-  const pAttrs = document.createElement('div');
-  pAttrs.className = 'pane';
-  const attrRes = await a.get_attrs(node.path);
-  pAttrs.appendChild(renderAttrs(attrRes.ok ? attrRes.attrs : {}));
-  wrap.appendChild(pAttrs);
-
-  wireTabs([tChildren, tAttrs], [pChildren, pAttrs]);
-  contentEl.appendChild(wrap);
+  tabs.add('Children', pChildren);
+  tabs.add('Attributes', renderAttrs(attrRes));
+  mountView(node, wrap, tabs, token);
 }
 
-// ── Render Dataset ──
-async function renderDataset(node) {
-  hintEl.style.display = 'none';
-  clearContent();
-  const a = api(); if (!a) return;
+// ── Dataset ──
+async function renderDataset(node, token) {
+  const a = await apiReady;
+  const p = node.path;
+  const [dataRes, attrRes, detRes] = await Promise.all([a.get_data(p), a.get_attrs(p), a.get_details(p)]);
+  if (token !== S.token) return;
 
-  const wrap = document.createElement('div');
-  wrap.className = 'fade-up';
-  wrap.style.cssText = 'height:100%;display:flex;flex-direction:column;';
+  const wrap = newView();
+  wrap.appendChild(infoBar([
+    '<span class="chip tp">Dataset</span>',
+    `<span class="chip dt">${esc(node.dtype)}</span>`,
+    `<span class="chip sh">${esc(node.null ? 'null' : fmtShape(node.shape))}</span>`,
+    `<span class="chip sz">${fmtInt(node.size)} values · ${esc(fmtBytes(node.nbytes))}</span>`,
+    `<span class="chip at">${node.attr_count || 0} attrs</span>`,
+    node.compression ? `<span class="chip" style="background:var(--green-soft);color:var(--green)">${esc(node.compression)}${node.compression_opts ? ' ' + esc(node.compression_opts) : ''}</span>` : '',
+  ], p));
+  const tabs = makeTabs(wrap);
 
-  // Info bar
-  const total = node.shape.reduce((a,b)=>a*b, 1) || 1;
-  const info = document.createElement('div');
-  info.className = 'info-bar';
-  info.innerHTML = `
-    <span class="chip tp">Dataset</span>
-    <span class="chip dt">${esc(node.dtype)}</span>
-    <span class="chip sh">${node.shape.length===0?'scalar':node.shape.join(' × ')}</span>
-    <span class="chip sz">${total.toLocaleString()} values</span>
-    <span class="chip at">${node.attr_count||0} attrs</span>
-    ${node.compression?`<span class="chip" style="background:var(--green-soft);color:var(--green)">${esc(node.compression)}</span>`:''}`;
-  wrap.appendChild(info);
-
-  // Tabs
-  const tabsEl = document.createElement('div');
-  tabsEl.className = 'tabs';
-  const tData = mkTab('Data', true);
-  const tAttrs = mkTab('Attributes', false);
-  const tDetails = mkTab('Details', false);
-  tabsEl.append(tData.el, tAttrs.el, tDetails.el);
-
-  // Image tab?
-  const canImg = (node.shape.length === 2 || (node.shape.length === 3 && [1, 3, 4].includes(node.shape[2])));
-  let tImage = null;
-  if (canImg && total <= 4000000) {
-    tImage = mkTab('Image', false);
-    tabsEl.appendChild(tImage.el);
-  }
-  wrap.appendChild(tabsEl);
-
-  // Data pane
+  // Data
   const pData = document.createElement('div');
-  pData.className = 'pane on';
-  const dataRes = await a.get_data(node.path);
   if (!dataRes.ok) {
-    pData.innerHTML = `<div class="empty-msg">Error: ${esc(dataRes.error)}</div>`;
+    pData.innerHTML = errBox(dataRes.error);
   } else if (dataRes.mode === 'scalar') {
-    pData.innerHTML = `<div class="scalar-box"><div class="scalar-inner"><div class="scalar-lbl">Scalar Value</div><div class="scalar-val">${esc(String(dataRes.value))}</div></div></div>`;
+    pData.innerHTML = `<div class="scalar-box"><div class="scalar-inner"><div class="scalar-lbl">Scalar Value</div><div class="scalar-val">${esc(fmtVal(dataRes.value))}</div></div></div>`;
+  } else if (dataRes.rows.length === 0) {
+    pData.innerHTML = '<div class="empty-msg">Empty dataset (no elements)</div>';
   } else {
     if (dataRes.truncated) {
-      const notice = document.createElement('div');
-      notice.className = 'tbl-notice';
-      notice.textContent = `Preview: showing ${dataRes.shown_rows||dataRes.shown||'?'} of ${(dataRes.total_rows||dataRes.total_elements||'?').toLocaleString()} rows`;
-      pData.appendChild(notice);
-    }
-    const tw = document.createElement('div');
-    tw.className = 'tbl-wrap';
-    const tbl = document.createElement('table');
-    tbl.className = 'dtbl';
-    const thead = document.createElement('thead');
-    let hdr = '<tr>';
-    for (let i = 0; i < dataRes.headers.length; i++) {
-      hdr += i === 0 ? `<th class="ri">${esc(dataRes.headers[i])}</th>` : `<th>${esc(dataRes.headers[i])}</th>`;
-    }
-    hdr += '</tr>';
-    thead.innerHTML = hdr;
-    tbl.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    for (const row of dataRes.rows) {
-      const tr = document.createElement('tr');
-      let cells = '';
-      for (let i = 0; i < row.length; i++) {
-        cells += i === 0 ? `<td class="ri">${row[i]}</td>` : `<td>${esc(String(row[i]))}</td>`;
-      }
-      tr.innerHTML = cells;
-      tbody.appendChild(tr);
-    }
-    tbl.appendChild(tbody);
-    tw.appendChild(tbl);
-    pData.appendChild(tw);
-  }
-  wrap.appendChild(pData);
-
-  // Attrs pane
-  const pAttrs = document.createElement('div');
-  pAttrs.className = 'pane';
-  const attrRes = await a.get_attrs(node.path);
-  pAttrs.appendChild(renderAttrs(attrRes.ok ? attrRes.attrs : {}));
-  wrap.appendChild(pAttrs);
-
-  // Details pane
-  const pDetails = document.createElement('div');
-  pDetails.className = 'pane';
-  const detRes = await a.get_details(node.path);
-  if (detRes.ok) {
-    const grid = document.createElement('div');
-    grid.className = 'attrs-grid';
-    for (const [k,v] of Object.entries(detRes.details)) {
-      const row = document.createElement('div');
-      row.className = 'attr-row';
-      row.innerHTML = `<span class="attr-k">${esc(formatLabel(k))}</span><span class="attr-v">${esc(String(v))}</span>`;
-      grid.appendChild(row);
-    }
-    pDetails.appendChild(grid);
-  } else {
-    pDetails.innerHTML = `<div class="empty-msg">${esc(detRes.error||'Error')}</div>`;
-  }
-  wrap.appendChild(pDetails);
-
-  // Image pane
-  let pImage = null;
-  const allTabs = [tData, tAttrs, tDetails];
-  const allPanes = [pData, pAttrs, pDetails];
-
-  if (tImage) {
-    pImage = document.createElement('div');
-    pImage.className = 'pane';
-    pImage.dataset.loaded = '0';
-    allTabs.push(tImage);
-    allPanes.push(pImage);
-    wrap.appendChild(pImage);
-  }
-
-  wireTabs(allTabs, allPanes, async (idx) => {
-    // Lazy-load image
-    if (tImage && idx === allTabs.indexOf(tImage) && pImage.dataset.loaded === '0') {
-      pImage.dataset.loaded = '1';
-      pImage.innerHTML = '<div class="empty-msg">Rendering image…</div>';
-      const imgRes = await a.get_image(node.path);
-      if (imgRes.ok) {
-        pImage.innerHTML = `<div class="img-box"><img src="${imgRes.data_uri}" title="${imgRes.width}×${imgRes.height}" /></div>`;
+      let msg;
+      if (dataRes.mode === '2d') {
+        msg = `Preview: ${fmtInt(dataRes.shown_rows)} of ${fmtInt(dataRes.total_rows)} rows × ${fmtInt(dataRes.shown_cols)} of ${fmtInt(dataRes.total_cols)} columns`;
+      } else if (dataRes.mode === 'nd') {
+        msg = `Preview: first ${fmtInt(dataRes.shown)} of ${fmtInt(dataRes.total_elements)} elements`;
       } else {
-        pImage.innerHTML = `<div class="empty-msg">${esc(imgRes.error)}</div>`;
+        msg = `Preview: first ${fmtInt(dataRes.shown_rows)} of ${fmtInt(dataRes.total_rows)} rows`;
       }
+      pData.appendChild(div('tbl-notice', esc(msg + ' · Export CSV for everything')));
     }
-  });
+    pData.appendChild(div('tbl-wrap', tableHtml(dataRes.headers, dataRes.rows)));
+  }
+  tabs.add('Data', pData);
+  tabs.add('Attributes', renderAttrs(attrRes));
 
-  contentEl.appendChild(wrap);
+  // Details
+  const pDetails = document.createElement('div');
+  if (detRes.ok) {
+    let h = '';
+    for (const [k, v] of Object.entries(detRes.details)) {
+      h += `<div class="attr-row"><span class="attr-k">${esc(formatLabel(k))}</span><span class="attr-v">${esc(fmtVal(v))}</span></div>`;
+    }
+    pDetails.appendChild(div('attrs-grid', h));
+  } else {
+    pDetails.innerHTML = errBox(detRes.error || 'Error');
+  }
+  tabs.add('Details', pDetails);
+
+  // Image (lazy)
+  const sh = node.shape || [];
+  const imgShape = !node.null && (sh.length === 2 || (sh.length === 3 && [1, 3, 4].includes(sh[2])));
+  const pixels = imgShape ? sh[0] * sh[1] : 0;
+  if (imgShape && pixels > 0 && pixels <= S.cfg.maxImagePx) {
+    tabs.add('Image', document.createElement('div'), pane => loadImage(p, pane));
+  }
+
+  mountView(node, wrap, tabs, token);
 }
 
-// ── Stats ──
+async function loadImage(path, pane) {
+  pane.innerHTML = '<div class="empty-msg">Rendering image…</div>';
+  const res = await (await apiReady).get_image(path);
+  if (!res.ok) { pane.innerHTML = errBox(res.error); return; }
+  const note = `${res.width} × ${res.height} px · ` +
+    (res.normalized ? 'values scaled linearly from min → max (NaN/Inf shown black)' : 'raw 8-bit values') +
+    ' · click to toggle fit / actual size';
+  pane.innerHTML = `<div class="img-note">${esc(note)}</div><div class="img-box"><img alt="" src="${res.data_uri}" /></div>`;
+  const box = pane.querySelector('.img-box');
+  box.querySelector('img').addEventListener('click', () => box.classList.toggle('actual'));
+}
+
+// ── Error / unsupported nodes ──
+function renderProblem(node, token) {
+  const wrap = newView();
+  if (node.type === 'link') {
+    wrap.appendChild(infoBar(['<span class="chip tp">Hard link</span>'], node.path));
+    const box = div('hint', `<div>Same group as <span class="crumb" style="color:var(--accent)">${esc(node.target)}</span></div><div style="font-size:11px">Enter or click to go there</div>`);
+    box.querySelector('.crumb').addEventListener('click', () => selectNode(node, { follow: true }));
+    wrap.appendChild(box);
+    mountView(node, wrap, null, token);
+    return;
+  }
+  const label = node.type === 'error' ? 'Unreadable' : (node.kind || 'Unsupported object');
+  wrap.appendChild(infoBar([`<span class="chip tp">${esc(label)}</span>`], node.path));
+  const msg = node.type === 'error'
+    ? 'This object could not be opened: ' + node.error
+    : `H5 Lens cannot display this kind of object (${node.kind || node.type}).`;
+  wrap.appendChild(div('', errBox(msg)));
+  mountView(node, wrap, null, token);
+}
+
+// ═══════════════════ Stats / Export ═══════════════════
 async function showStats() {
-  if (!currentNode || currentNode.type !== 'dataset') return;
-  const a = api(); if (!a) return;
+  const node = S.sel;
+  if (!node || node.type !== 'dataset' || S.busy) return;
+  S.busy = true;
   showLoad('Computing statistics…');
-  const res = await a.get_stats(currentNode.path);
-  hideLoad();
-  if (!res.ok) { toast(res.error); return; }
-
-  // Find or create stats pane
-  const wrap = contentEl.querySelector('.fade-up');
-  if (!wrap) return;
-
-  // Check if stats tab already exists
-  const tabsEl = wrap.querySelector('.tabs');
-  let statsTab = tabsEl.querySelector('[data-label="Statistics"]');
-  if (!statsTab) {
-    statsTab = document.createElement('div');
-    statsTab.className = 'tab';
-    statsTab.textContent = 'Statistics';
-    statsTab.dataset.label = 'Statistics';
-    tabsEl.appendChild(statsTab);
-
-    const pane = document.createElement('div');
-    pane.className = 'pane';
-    pane.id = 'statsPane';
-    wrap.appendChild(pane);
-
-    // Wire it
-    statsTab.addEventListener('click', () => {
-      wrap.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-      wrap.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
-      statsTab.classList.add('on');
-      pane.classList.add('on');
-    });
-  }
-
-  // Fill stats
-  const pane = wrap.querySelector('#statsPane') || document.createElement('div');
-  const s = res.stats;
-  pane.innerHTML = `<div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Minimum</div><div class="stat-value">${fmtNum(s.min)}</div></div>
-    <div class="stat-card"><div class="stat-label">Maximum</div><div class="stat-value">${fmtNum(s.max)}</div></div>
-    <div class="stat-card"><div class="stat-label">Mean</div><div class="stat-value">${fmtNum(s.mean)}</div></div>
-    <div class="stat-card"><div class="stat-label">Std Dev</div><div class="stat-value">${fmtNum(s.std)}</div></div>
-    <div class="stat-card"><div class="stat-label">Median</div><div class="stat-value">${fmtNum(s.median)}</div></div>
-    <div class="stat-card"><div class="stat-label">Total Elements</div><div class="stat-value">${s.total.toLocaleString()}</div></div>
-    <div class="stat-card"><div class="stat-label">NaN Count</div><div class="stat-value">${s.nan_count.toLocaleString()}</div></div>
-    ${s.unique >= 0 ? `<div class="stat-card"><div class="stat-label">Unique Values</div><div class="stat-value">${s.unique.toLocaleString()}</div></div>` : ''}
-  </div>`;
-
-  // Activate stats tab
-  statsTab.click();
-  toast('Statistics computed');
-}
-
-// ── Attrs helper ──
-function renderAttrs(attrs) {
-  const div = document.createElement('div');
-  div.className = 'attrs-grid';
-  const keys = Object.keys(attrs || {});
-  if (keys.length === 0) {
-    div.innerHTML = '<div class="empty-msg" style="height:auto;padding:32px">No attributes</div>';
-    return div;
-  }
-  for (const k of keys) {
-    const row = document.createElement('div');
-    row.className = 'attr-row';
-    let v = attrs[k];
-    if (Array.isArray(v)) v = '[' + v.slice(0, 50).join(', ') + (v.length > 50 ? ', …' : '') + ']';
-    row.innerHTML = `<span class="attr-k" title="${esc(k)}">${esc(k)}</span><span class="attr-v">${esc(String(v))}</span>`;
-    div.appendChild(row);
-  }
-  return div;
-}
-
-// ── Tab helpers ──
-function mkTab(label, active) {
-  const el = document.createElement('div');
-  el.className = 'tab' + (active ? ' on' : '');
-  el.textContent = label;
-  el.dataset.label = label;
-  return { el, label };
-}
-
-function wireTabs(tabs, panes, onSwitch) {
-  tabs.forEach((t, i) => {
-    t.el.addEventListener('click', () => {
-      tabs.forEach(tt => tt.el.classList.remove('on'));
-      panes.forEach(p => p.classList.remove('on'));
-      t.el.classList.add('on');
-      panes[i].classList.add('on');
-      if (onSwitch) onSwitch(i);
-    });
-  });
-}
-
-// ── Utility ──
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function fmtNum(n) { return typeof n === 'number' ? (Number.isInteger(n) ? n.toLocaleString() : n.toPrecision(8)) : String(n); }
-function formatLabel(k) { return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
-
-// ── Recent files ──
-async function loadRecent() {
-  const a = api(); if (!a) return;
+  let res;
   try {
-    const recent = await a.get_recent_files();
-    const list = $('recentList');
-    list.innerHTML = '';
-    if (!recent || recent.length === 0) return;
-    const title = document.createElement('div');
-    title.className = 'recent-title';
-    title.textContent = 'Recent Files';
-    list.appendChild(title);
-    for (const fp of recent) {
-      const item = document.createElement('div');
-      item.className = 'recent-item';
-      const name = fp.split(/[/\\]/).pop();
-      item.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><span>${esc(name)}</span>`;
-      item.title = fp;
-      item.addEventListener('click', () => openFile(fp));
-      list.appendChild(item);
-    }
-  } catch(_) {}
+    res = await (await apiReady).get_stats(node.path);
+  } catch (e) {
+    res = { ok: false, error: String(e) };
+  } finally {
+    hideLoad();
+    S.busy = false;
+  }
+  if (!res.ok) { toast(res.error, true); return; }
+  if (!S.view || S.view.path !== node.path || !S.view.tabs) return;   // moved on meanwhile
+
+  const s = res.stats;
+  const num = v => typeof v === 'number' ? (Number.isInteger(v) ? fmtInt(v) : fmtFloat(v)) : String(v);
+  const card = (label, value, title) => value === null
+    ? `<div class="stat-card" title="${esc(title || '')}"><div class="stat-label">${label}</div><div class="stat-value dim">skipped</div></div>`
+    : `<div class="stat-card"><div class="stat-label">${label}</div><div class="stat-value">${esc(value)}</div></div>`;
+  const html = '<div class="stats-grid">' + [
+    card('Minimum', num(s.min)),
+    card('Maximum', num(s.max)),
+    card('Mean', num(s.mean)),
+    card('Std Dev', num(s.std)),
+    card('Median', s.median === null ? null : num(s.median), 'Too many values to hold in memory'),
+    card('Total Elements', fmtInt(s.total)),
+    card('Finite Values', fmtInt(s.finite)),
+    card('NaN Count', fmtInt(s.nan_count)),
+    card('±Inf Count', fmtInt(s.inf_count)),
+    card('Unique Values', s.unique >= 0 ? fmtInt(s.unique) : null, 'Counted only below 1,000,000 finite values'),
+  ].join('') + '</div>';
+
+  const tabs = S.view.tabs;
+  const pane = tabs.get('Statistics') || tabs.add('Statistics', document.createElement('div'));
+  pane.innerHTML = html;
+  tabs.show('Statistics');
 }
 
-// ── Events ──
+async function exportCsv() {
+  const node = S.sel;
+  if (!node || node.type !== 'dataset' || S.busy) return;
+  S.busy = true;
+  try {
+    const a = await apiReady;
+    showLoad('Exporting…');
+    const res = await a.export_csv_dialog(node.path);
+    if (res.ok) toast('Exported to ' + res.path.split(/[/\\]/).pop());
+    else if (res.error !== 'cancelled') toast('Export failed: ' + res.error, true);
+  } catch (e) {
+    toast('Export failed: ' + e, true);
+  } finally {
+    hideLoad();
+    S.busy = false;
+  }
+}
+
+// ═══════════════════ Recent files ═══════════════════
+async function loadRecent() {
+  const a = await apiReady;
+  let recent = [];
+  try { recent = (await a.get_recent_files()) || []; } catch (_) {}
+  recent = recent.map(r => typeof r === 'string' ? { path: r, exists: true } : r);
+  const list = $('recentList');
+  list.innerHTML = '';
+  if (recent.length === 0) return;
+
+  const head = div('recent-head', '<span class="recent-title">Recent Files</span><span class="recent-clear">Clear</span>');
+  head.querySelector('.recent-clear').addEventListener('click', async () => { await a.clear_recent(); loadRecent(); });
+  list.appendChild(head);
+
+  for (const r of recent) {
+    const parts = r.path.split(/[/\\]/);
+    const name = parts.pop();
+    const item = div('recent-item' + (r.exists ? '' : ' missing'),
+      `${ICONS.root}<span class="nm">${esc(name)}</span><span class="dir"><bdi>${esc(parts.join('/'))}</bdi></span><span class="x" title="Remove from list">×</span>`);
+    item.title = r.exists ? r.path : r.path + ' (not found)';
+    item.addEventListener('click', e => {
+      if (e.target.closest('.x')) { a.remove_recent(r.path).then(loadRecent); return; }
+      openFile(r.path);
+    });
+    list.appendChild(item);
+  }
+}
+
+// ═══════════════════ Events ═══════════════════
 $('btnOpen').addEventListener('click', () => openFile(null));
 $('dropZone').addEventListener('click', () => openFile(null));
-$('btnExport').addEventListener('click', async () => {
-  if (!currentNode || currentNode.type !== 'dataset') return;
-  const a = api(); if (!a) return;
-  const res = await a.export_csv_dialog(currentNode.path);
-  if (res.ok) toast('Exported to ' + res.path.split(/[/\\]/).pop());
-  else if (res.error !== 'cancelled') toast('Export failed: ' + res.error);
-});
+$('btnExport').addEventListener('click', exportCsv);
 $('btnStats').addEventListener('click', showStats);
+$('btnClose').addEventListener('click', closeFile);
 
-$('searchInput').addEventListener('input', () => {
-  filterText = $('searchInput').value.trim();
-  if (treeData) renderTree(treeData);
-});
+function visibleRows() { return Array.from(treeEl.querySelectorAll('.tnode')); }
 
-// Keyboard
+function treeKey(e) {
+  const rows = visibleRows();
+  if (rows.length === 0) return;
+  const idx = S.sel ? rows.findIndex(r => r.dataset.path === S.sel.path) : -1;
+  const node = S.sel;
+  const go = i => selectNode(S.byPath.get(rows[clamp(i, 0, rows.length - 1)].dataset.path), { defer: true });
+  switch (e.key) {
+    case 'ArrowDown': go(idx + 1); break;
+    case 'ArrowUp': go(idx < 0 ? 0 : idx - 1); break;
+    case 'Home': go(0); break;
+    case 'End': go(rows.length - 1); break;
+    case 'PageDown': go(idx + 15); break;
+    case 'PageUp': go(idx - 15); break;
+    case 'ArrowRight':
+      if (node && hasKids(node)) { if (!isOpen(node)) setExpanded(node.path, true); else go(idx + 1); markSelected(); }
+      break;
+    case 'ArrowLeft':
+      if (node && isOpen(node) && !S.filter) { setExpanded(node.path, false); markSelected(); }
+      else if (node && S.parent.has(node.path)) selectNode(S.byPath.get(S.parent.get(node.path)), { defer: true });
+      break;
+    case 'Enter':
+      if (node && node.type === 'link') selectNode(node, { follow: true });
+      else if (node && hasKids(node)) { setExpanded(node.path, !isOpen(node)); markSelected(); }
+      break;
+    default: return;
+  }
+  e.preventDefault();
+}
+
 document.addEventListener('keydown', e => {
-  if ((e.ctrlKey||e.metaKey) && e.key === 'o') { e.preventDefault(); openFile(null); }
-  if ((e.ctrlKey||e.metaKey) && e.key === 'e') { e.preventDefault(); $('btnExport').click(); }
-  if (e.key === '/' && document.activeElement !== $('searchInput')) { e.preventDefault(); $('searchInput').focus(); }
-  if (e.key === 'Escape') { $('searchInput').blur(); $('searchInput').value = ''; filterText = ''; if (treeData) renderTree(treeData); }
+  const mod = e.ctrlKey || e.metaKey;
+  const k = e.key.toLowerCase();
+  const inSearch = document.activeElement === searchEl;
+  if (mod && k === 'o') { e.preventDefault(); openFile(null); }
+  else if (mod && k === 'e') { e.preventDefault(); exportCsv(); }
+  else if (mod && k === 'i') { e.preventDefault(); showStats(); }
+  else if (mod && k === 'w') { e.preventDefault(); if (S.tree) closeFile(); }
+  else if (mod && k === 'f') { e.preventDefault(); if (S.tree) { searchEl.focus(); searchEl.select(); } }
+  else if (e.key === '/' && !inSearch) { e.preventDefault(); if (S.tree) { searchEl.focus(); searchEl.select(); } }
+  else if (e.key === 'Escape') {
+    if (inSearch || S.filter) { clearTimeout(filterT); setFilter(''); treeEl.focus(); }
+  }
+  else if (inSearch && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+    e.preventDefault();
+    clearTimeout(filterT);
+    setFilter(searchEl.value.trim());
+    treeEl.focus();
+    const rows = visibleRows();
+    if (rows.length) selectNode(S.byPath.get(rows[0].dataset.path));
+  }
+  else if (document.activeElement === treeEl && !mod) treeKey(e);
 });
 
-// Resize handle
-let resizing = false;
+// Drag and drop: launch.py's drop handler receives the real path (browsers
+// hide it from page scripts) and calls openFile(); here we only stop the
+// webview from navigating to the file and give visual feedback.
+const dropZone = $('dropZone');
+let dragDepth = 0;
+document.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; dropZone.classList.add('drag'); });
+document.addEventListener('dragover', e => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; });
+document.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; dropZone.classList.remove('drag'); } });
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropZone.classList.remove('drag');
+  const dropAt = Date.now();
+  setTimeout(() => {
+    if (S.lastOpenAt < dropAt) toast('Could not get the dropped file\'s path - use Open instead', true);
+  }, 1500);
+});
+
+// Sidebar resize
 const rh = $('resizeHandle');
+let resizing = false;
+function setSidebar(w) {
+  w = clamp(Math.round(w), 180, Math.max(180, Math.min(700, window.innerWidth - 320)));
+  mainEl.style.setProperty('--sbw', w + 'px');
+  return w;
+}
 rh.addEventListener('mousedown', e => { e.preventDefault(); resizing = true; rh.classList.add('dragging'); document.body.style.cursor = 'col-resize'; });
-document.addEventListener('mousemove', e => {
+document.addEventListener('mousemove', e => { if (resizing) setSidebar(e.clientX); });
+document.addEventListener('mouseup', () => {
   if (!resizing) return;
-  const w = Math.max(180, Math.min(500, e.clientX));
-  mainEl.style.gridTemplateColumns = w + 'px 1fr';
-  rh.style.left = (w - 1) + 'px';
+  resizing = false;
+  rh.classList.remove('dragging');
+  document.body.style.cursor = '';
+  try { localStorage.setItem('h5lens.sidebar', parseInt(getComputedStyle(mainEl).getPropertyValue('--sbw'), 10)); } catch (_) {}
 });
-document.addEventListener('mouseup', () => { if (resizing) { resizing = false; rh.classList.remove('dragging'); document.body.style.cursor = ''; } });
 
-// ── Init ──
-window.addEventListener('pywebviewready', () => { loadRecent(); });
-setTimeout(() => { if (api()) loadRecent(); }, 500);
+// ═══════════════════ Init ═══════════════════
+apiReady.then(async a => {
+  try {
+    const cfg = await a.get_config();
+    const v = cfg.viewer || {};
+    S.cfg.precision = clamp(parseInt(v.float_precision, 10) || 8, 1, 17);
+    S.cfg.maxImagePx = Number(v.max_image_pixels) || 4000000;
+    let w = Number(v.sidebar_width) || 280;
+    try { w = Number(localStorage.getItem('h5lens.sidebar')) || w; } catch (_) {}
+    setSidebar(w);
+    if (cfg.version) $('welcomeFoot').textContent = 'H5 Lens v' + cfg.version;
+  } catch (_) {}
+  loadRecent();
+});
 </script>
 </body>
 </html>

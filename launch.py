@@ -64,12 +64,17 @@ def load_config():
             try:
                 with open(cp, "r", encoding="utf-8") as f:
                     config = json.load(f)
+                if not isinstance(config, dict):
+                    continue
                 for key, val in default_config.items():
-                    if key not in config:
+                    cur = config.get(key)
+                    if cur is None or type(cur) is not type(val):
+                        # Missing or wrong type (e.g. "viewer": null) -> default
                         config[key] = val
                     elif isinstance(val, dict):
                         for k, v in val.items():
-                            config[key].setdefault(k, v)
+                            cur.setdefault(k, v)
+                config["recent_files"] = [p for p in config["recent_files"] if isinstance(p, str)]
                 return config, str(config_path)  # always write to app_dir
             except Exception:
                 continue
@@ -195,14 +200,44 @@ def main():
 
     app.set_window(window)
 
-    file_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    debug = "--debug" in sys.argv[1:] or bool(os.environ.get("H5LENS_DEBUG"))
+    file_arg = os.path.abspath(args[0]) if args else None
 
     def on_loaded():
-        if file_arg and os.path.isfile(file_arg):
-            window.evaluate_js(f"openFile({json.dumps(os.path.abspath(file_arg))})")
+        enable_file_drop(window)
+        if file_arg:
+            # openFile() waits for the JS bridge itself, so this is safe even
+            # if the page loads before window.pywebview is injected.
+            window.evaluate_js(f"openFile({json.dumps(file_arg)})")
 
     window.events.loaded += on_loaded
-    webview.start(debug=False)
+    webview.start(debug=debug)
+
+
+def enable_file_drop(window):
+    """Open files dropped onto the window.
+
+    Browsers hide a dropped file's real path from page scripts; pywebview
+    (>= 5) reveals it as `pywebviewFullPath` to a Python-side drop handler.
+    """
+    try:
+        from webview.dom import DOMEventHandler
+    except ImportError:
+        return
+
+    def on_drop(event):
+        files = (event.get("dataTransfer") or {}).get("files") or []
+        for f in files:
+            path = f.get("pywebviewFullPath")
+            if path:
+                window.evaluate_js(f"openFile({json.dumps(path)})")
+                return
+
+    try:
+        window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
